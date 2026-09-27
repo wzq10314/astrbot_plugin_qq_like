@@ -807,6 +807,8 @@ async def send_forward_message(
     """
     batch_size = len(images) if single_batch and images else 10
     nickname = "PixivBot"
+    # OneBot 合并转发需要有效的发送者，不能使用 Node 默认的 QQ 0。
+    sender_uin = str(event.get_self_id())
     # 在处理转发消息之前，先清理可能存在的旧文件
     await clean_temp_dir(_temp_dir, max_files=20)
     class SinglePageUrls:
@@ -843,7 +845,7 @@ async def send_forward_message(
         batch_items = image_items[i : i + batch_size]
         nodes_list = []
         if summary_text and i == 0:
-            nodes_list.append(Node(name=nickname, content=[Plain(summary_text)]))
+            nodes_list.append(Node(uin=sender_uin, name=nickname, content=[Plain(summary_text)]))
         async with aiohttp.ClientSession() as session:
             for item_type, img, url_obj, detail_message in batch_items:
                 if item_type == "ugoira":
@@ -906,7 +908,7 @@ async def send_forward_message(
                     if _config.show_details:
                         node_content.append(Plain(detail_message))
 
-                node = Node(name=nickname, content=node_content)
+                node = Node(uin=sender_uin, name=nickname, content=node_content)
                 nodes_list.append(node)
         if nodes_list:
             nodes_obj = Nodes(nodes=nodes_list)
