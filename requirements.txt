@@ -1,0 +1,14 @@
+psutil>=5.9,<8
+Pillow>=10.4,<13
+aiohttp>=3.10,<4
+playwright>=1.45,<2
+pyzipper>=0.3.6
+PyMuPDF>=1.24.0
+PyPDF2>=3.0.1
+pixivpy3>=3.0.0
+curl_cffi>=0.7.0
+peewee>=3.14.0
+apscheduler>=3.9.0
+fpdf2>=2.7.0
+aiofiles>=22.1.0
+opencc-python-reimplemented==0.1.7

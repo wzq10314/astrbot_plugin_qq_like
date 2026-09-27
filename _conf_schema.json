@@ -1,0 +1,445 @@
+{
+  "llm_enabled": {
+    "description": "允许LLM自然语言调用点赞工具",
+    "type": "bool",
+    "default": true
+  },
+  "enabled": {
+    "description": "启用点赞",
+    "type": "bool",
+    "default": true
+  },
+  "default_times": {
+    "description": "默认申请次数（1～50），实际生效受 QQ 限制",
+    "type": "int",
+    "default": 50
+  },
+  "allow_other": {
+    "description": "允许指定其他 QQ 或 @用户点赞",
+    "type": "bool",
+    "default": true
+  },
+  "cooldown_seconds": {
+    "description": "同一请求人或目标的冷却秒数（10～3600）",
+    "type": "int",
+    "default": 60
+  },
+  "batch_interval": {
+    "description": "每批10次的间隔秒数（1～5）",
+    "type": "int",
+    "default": 1
+  },
+  "status_enabled": {
+    "description": "启用服务器状态图",
+    "type": "bool",
+    "default": true
+  },
+  "status_admin_only": {
+    "description": "状态图仅管理员使用；debug始终仅管理员",
+    "type": "bool",
+    "default": false
+  },
+  "status_browser_path": {
+    "description": "Chromium/Chrome可执行文件路径；留空自动检测系统或Playwright浏览器",
+    "type": "string",
+    "default": ""
+  },
+  "status_background_path": {
+    "description": "可选本地背景图片绝对路径；留空使用柔和渐变",
+    "type": "string",
+    "default": ""
+  },
+  "status_bot_name": {
+    "description": "获取机器人昵称失败时的备用显示名称",
+    "type": "string",
+    "default": "AstrBot"
+  },
+  "pica_enabled": {
+    "type": "bool",
+    "description": "启用哔咔漫画功能",
+    "hint": "哔咔为成人向漫画平台，默认关闭。开启后所有 /pica* 命令可用。",
+    "default": false
+  },
+  "pica_account": {
+    "type": "string",
+    "description": "哔咔默认账号(邮箱)",
+    "hint": "在 https://pica.life 注册的账号邮箱。用户可用 /picalogin 绑定自己的账号。",
+    "default": ""
+  },
+  "pica_password": {
+    "type": "string",
+    "description": "哔咔默认密码",
+    "hint": "登录密码，留空则无法使用需登录的功能",
+    "default": ""
+  },
+  "allow_default_account": {
+    "type": "bool",
+    "description": "允许未绑定用户使用默认账号",
+    "hint": "关闭后，每个QQ用户必须用 /picalogin 绑定自己的哔咔账号才能使用",
+    "default": true
+  },
+  "pica_use_proxy": {
+    "type": "bool",
+    "description": "哔咔是否使用代理",
+    "hint": "部分地区可能需要代理才能访问 pica API",
+    "default": false
+  },
+  "pica_proxy_url": {
+    "type": "string",
+    "description": "哔咔代理服务器地址",
+    "hint": "格式: http://host:port 或 socks5://host:port",
+    "default": ""
+  },
+  "pica_max_retry": {
+    "type": "int",
+    "description": "哔咔请求重试次数",
+    "default": 3
+  },
+  "pica_timeout": {
+    "type": "int",
+    "description": "哔咔请求超时时间(秒)",
+    "default": 30
+  },
+  "pica_page_size": {
+    "type": "int",
+    "description": "哔咔搜索结果每页显示数量",
+    "default": 10
+  },
+  "pica_max_concurrent": {
+    "type": "int",
+    "description": "哔咔图片下载并发数",
+    "hint": "建议3-8",
+    "default": 5
+  },
+  "pica_send_cover": {
+    "type": "bool",
+    "description": "哔咔详情是否发送封面图",
+    "default": true
+  },
+  "pica_modify_md5": {
+    "type": "bool",
+    "description": "哔咔下载时修改图片MD5",
+    "hint": "防止被风控检测，建议开启",
+    "default": true
+  },
+  "pack_format": {
+    "type": "string",
+    "description": "哔咔下载打包格式",
+    "hint": "images=直接发送图片; zip=压缩包; pdf=PDF文档; long_img=纵向长图; none=仅本地保存",
+    "default": "zip",
+    "options": ["images", "zip", "pdf", "long_img", "none"]
+  },
+  "pack_password": {
+    "type": "string",
+    "description": "哔咔打包密码",
+    "hint": "为ZIP或PDF设置密码，留空则不加密",
+    "default": ""
+  },
+  "send_batch_mb": {
+    "type": "int",
+    "description": "哔咔整本下载单文件大小上限(MB)",
+    "hint": "超过该大小会按章节分批打包发送；0表示不分批",
+    "default": 500
+  },
+  "send_api_timeout": {
+    "type": "int",
+    "description": "哔咔大文件上传的OneBot API超时(秒)",
+    "hint": "0 表示不改动",
+    "default": 900
+  },
+  "progress_step_pct": {
+    "type": "int",
+    "description": "哔咔整本下载进度提示间隔(%)",
+    "default": 10
+  },
+  "pica_admin_only": {
+    "type": "bool",
+    "description": "哔咔仅管理员可用",
+    "default": false
+  },
+  "pica_admin_ids": {
+    "type": "string",
+    "description": "哔咔管理员ID列表",
+    "hint": "逗号分隔的QQ号，pica_admin_only 开启时生效",
+    "default": ""
+  },
+  "cache_clean_interval_hours": {
+    "type": "int",
+    "description": "哔咔缓存自动清理间隔(小时)",
+    "hint": "0 表示关闭自动清理",
+    "default": 12
+  },
+  "cache_max_age_days": {
+    "type": "int",
+    "description": "哔咔缓存保留天数",
+    "hint": "0 表示不按时间清理",
+    "default": 7
+  },
+  "cache_max_size_mb": {
+    "type": "int",
+    "description": "哔咔缓存大小上限(MB)",
+    "hint": "0 表示不按大小清理",
+    "default": 2048
+  },
+  "refresh_token": {
+    "description": "Pixiv Refresh Token",
+    "type": "string",
+    "hint": "用于 API 认证。获取方法请参考 pixiv-api 文档。",
+    "default": "",
+    "is_sensitive": true
+  },
+  "fanbox_sessid": {
+    "description": "Pixiv Fanbox Session（FANBOXSESSID）",
+    "type": "string",
+    "hint": "用于访问受限 Fanbox 内容。可在浏览器 Cookie 中获取。",
+    "default": "",
+    "is_sensitive": true
+  },
+  "fanbox_cf_clearance": {
+    "description": "Fanbox cf_clearance（可选）",
+    "type": "string",
+    "hint": "仅当官方 API 被 Cloudflare 拦截时填写。",
+    "default": "",
+    "is_sensitive": true
+  },
+  "fanbox_user_agent": {
+    "description": "Fanbox 请求 User-Agent（可选）",
+    "type": "string",
+    "default": ""
+  },
+  "fanbox_data_source": {
+    "description": "Fanbox 数据源模式",
+    "type": "string",
+    "hint": "auto(官方优先失败回退Nekohouse)、official(仅官方API)、nekohouse(仅Nekohouse归档)",
+    "default": "auto",
+    "options": ["auto", "official", "nekohouse"]
+  },
+  "fanbox_api_proxy_host": {
+    "type": "string",
+    "description": "Fanbox API 反代服务器",
+    "hint": "格式：域名（如 example.com），留空直连 api.fanbox.cc。",
+    "default": ""
+  },
+  "fanbox_dl_impersonate": {
+    "type": "string",
+    "description": "Fanbox 下载 TLS 指纹伪装",
+    "hint": "模拟浏览器指纹（如 edge101、chrome131）。留空走默认 aiohttp。",
+    "default": ""
+  },
+  "fanbox_dl_page_limit": {
+    "type": "int",
+    "description": "Fanbox 列表分页大小",
+    "default": 300
+  },
+  "fanbox_dl_max_429_retries": {
+    "type": "int",
+    "description": "Fanbox 429 重试次数",
+    "default": 4
+  },
+  "fanbox_dl_max_cf_consecutive": {
+    "type": "int",
+    "description": "Fanbox Cloudflare 连续拦截上限",
+    "default": 3
+  },
+  "fanbox_dl_max_retries": {
+    "type": "int",
+    "description": "Fanbox 文件下载重试次数",
+    "default": 5
+  },
+  "fanbox_dl_concurrency": {
+    "type": "int",
+    "description": "Fanbox 下载并发数",
+    "default": 4
+  },
+  "fanbox_dl_prefetch_queue": {
+    "type": "int",
+    "description": "Fanbox 详情预取队列",
+    "default": 4
+  },
+  "fanbox_dl_pack_size_mb": {
+    "type": "int",
+    "description": "Fanbox 打包单卷上限(MB)",
+    "default": 100
+  },
+  "fanbox_dl_send_limit_mb": {
+    "type": "int",
+    "description": "Fanbox 打包发送上限(MB)",
+    "default": 1024
+  },
+  "return_count": {
+    "description": "Pixiv每次搜索返回的图片数量",
+    "type": "int",
+    "hint": "有效范围: 1-10",
+    "default": 1,
+    "min": 1,
+    "max": 10
+  },
+  "r18_mode": {
+    "description": "Pixiv R18 内容过滤模式",
+    "type": "string",
+    "hint": "'过滤 R18' (默认), '允许 R18', '仅 R18'",
+    "default": "过滤 R18",
+    "options": ["过滤 R18", "允许 R18", "仅 R18"]
+  },
+  "filter_r18g_only": {
+    "description": "Pixiv额外过滤 R18G",
+    "type": "bool",
+    "default": false
+  },
+  "ai_filter_mode": {
+    "description": "Pixiv AI 生成作品过滤模式",
+    "type": "string",
+    "hint": "'显示 AI 作品' (默认), '过滤 AI 作品', '仅 AI 作品'",
+    "default": "显示 AI 作品",
+    "options": ["显示 AI 作品", "过滤 AI 作品", "仅 AI 作品"]
+  },
+  "ai_detection_mode": {
+    "description": "Pixiv AI 判定模式",
+    "type": "string",
+    "default": "field_or_tag",
+    "options": ["field_or_tag", "field_only", "tag_only"]
+  },
+  "min_bookmarks": {
+    "description": "Pixiv最小书签数过滤阈值",
+    "type": "int",
+    "default": 0
+  },
+  "min_views": {
+    "description": "Pixiv最小阅读量过滤阈值",
+    "type": "int",
+    "default": 0
+  },
+  "min_likes": {
+    "description": "Pixiv最小点赞数过滤阈值",
+    "type": "int",
+    "default": 0
+  },
+  "deep_search_depth": {
+    "description": "Pixiv深度搜索页数深度",
+    "type": "int",
+    "hint": "-1 无限制, 0 仅第一页, 1-50 指定页数",
+    "default": 3,
+    "min": -1,
+    "max": 50
+  },
+  "show_details": {
+    "description": "Pixiv是否在发送图片时附带详细信息",
+    "type": "bool",
+    "default": true
+  },
+  "forward_threshold": {
+    "description": "Pixiv是否启用消息转发",
+    "type": "bool",
+    "default": false
+  },
+  "pixiv_urlsearch_enabled": {
+    "description": "Pixiv URL 搜索功能",
+    "type": "bool",
+    "default": true
+  },
+  "show_filter_result": {
+    "description": "Pixiv是否显示过滤内容提示",
+    "type": "bool",
+    "default": true
+  },
+  "single_response_mode": {
+    "description": "Pixiv单条合并消息模式",
+    "type": "bool",
+    "default": true
+  },
+  "image_quality": {
+    "description": "Pixiv默认发送的图片质量",
+    "type": "string",
+    "hint": "'original' (原图), 'large' (大图), 'medium' (中图)",
+    "default": "medium",
+    "options": ["original", "large", "medium"]
+  },
+  "image_send_method": {
+    "description": "Pixiv图片发送方式",
+    "type": "string",
+    "hint": "'url' (直接URL), 'file' (文件路径), 'byte' (base64)",
+    "default": "url",
+    "options": ["url", "file", "byte"]
+  },
+  "pil_compress_quality": {
+    "description": "Pixiv本地PIL压缩画质百分比",
+    "type": "int",
+    "default": 100,
+    "min": 1,
+    "max": 100
+  },
+  "pil_compress_target_kb": {
+    "description": "Pixiv本地PIL压缩目标文件大小(KB)",
+    "type": "int",
+    "default": 0,
+    "min": 0,
+    "max": 20480
+  },
+  "refresh_token_interval_minutes": {
+    "description": "Pixiv自动刷新 Refresh Token 间隔(分钟)",
+    "type": "int",
+    "default": 180,
+    "min": 0,
+    "max": 10080
+  },
+  "subscription_enabled": {
+    "description": "Pixiv订阅功能",
+    "type": "bool",
+    "default": true
+  },
+  "subscription_force_forward": {
+    "description": "Pixiv订阅消息强制合并转发",
+    "type": "bool",
+    "default": true
+  },
+  "subscription_check_interval_minutes": {
+    "description": "Pixiv订阅更新检查间隔(分钟)",
+    "type": "int",
+    "default": 30,
+    "min": 5,
+    "max": 1440
+  },
+  "proxy": {
+    "description": "Pixiv代理地址",
+    "type": "string",
+    "hint": "例如 http://127.0.0.1:7890",
+    "default": ""
+  },
+  "image_proxy_host": {
+    "type": "string",
+    "description": "Pixiv图片反代服务器",
+    "default": "i.pixiv.re"
+  },
+  "use_image_proxy": {
+    "type": "bool",
+    "description": "Pixiv启用图片反代",
+    "default": true
+  },
+  "api_proxy_host": {
+    "type": "string",
+    "description": "Pixiv API 反代服务器",
+    "hint": "格式：域名，留空使用 ByPassSniApi 模式。",
+    "default": ""
+  },
+  "random_search_min_interval": {
+    "description": "Pixiv随机搜索最短间隔(分钟)",
+    "type": "int",
+    "default": 60,
+    "min": 1,
+    "max": 1440
+  },
+  "random_search_max_interval": {
+    "description": "Pixiv随机搜索最长间隔(分钟)",
+    "type": "int",
+    "default": 120,
+    "min": 1,
+    "max": 1440
+  },
+  "random_sent_illust_retention_days": {
+    "description": "Pixiv随机搜索已发送作品保留天数",
+    "type": "int",
+    "default": 7,
+    "min": 1,
+    "max": 365
+  }
+}

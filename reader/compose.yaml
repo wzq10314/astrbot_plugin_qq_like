@@ -1,0 +1,19 @@
+services:
+  qq-like-reader:
+    image: python:3.12-slim
+    command: [python, /app/server.py, --config, /app/config.json]
+    restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    mem_limit: 512m
+    pids_limit: 32
+    volumes:
+      - ./:/app:ro
+      - ./state:/state
+      - ${ASTRBOT_DATA_DIR:?Set ASTRBOT_DATA_DIR}/plugin_data/astrbot_plugin_qq_like:/source:ro
+    networks: [astrbot-net]
+networks:
+  astrbot-net:
+    external: true
