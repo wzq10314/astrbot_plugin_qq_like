@@ -3,7 +3,7 @@ from pathlib import Path
 import zipfile
 
 root = Path(__file__).resolve().parents[1]
-output = root.parent / "astrbot_plugin_qq_like-v1.6.0.zip"
+output = root.parent / "astrbot_plugin_qq_like-v1.6.1.zip"
 excluded = {"__pycache__", ".pytest_cache", ".git", ".venv", "node_modules", "_test_data", "state", "packs", "downloads"}
 with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as archive:
     for path in sorted(root.rglob("*")):

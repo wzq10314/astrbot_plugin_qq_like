@@ -1,10 +1,7 @@
 """Bounded sequential OneBot requests; acknowledgements are not verified likes."""
 import asyncio
-import logging
 import time
 from dataclasses import dataclass
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -15,11 +12,9 @@ class Result:
 
     def describe(self, target):
         if self.acknowledged:
-            text = f'已为{target}提交{self.acknowledged}次点赞申请，到账以QQ名片为准哦~'
+            text = f'给{target}赞了{self.acknowledged}下哦，记得回我~'
             if '超时' in self.reason:
-                text += '\n最后一批超时，结果未确认，已停止。'
-            elif self.reason:
-                text += '\n后续申请未成功，已停止；可能已达上限或接口异常。'
+                text += '\n最后一批超时，是否到账未知，请先查看名片再试哦。'
             return text
         if '冷却' in self.reason:
             return self.reason
@@ -28,7 +23,6 @@ class Result:
         if '超时' in self.reason:
             return '点赞超时了，先看看名片有没有增加哦~'
         return '暂时赞不了啦，可能今天已达上限，或者需要先加好友哦~'
-
 
 
 def failure(response):
@@ -84,11 +78,9 @@ class LikeService:
                 if result.reason:
                     break
                 result.acknowledged += batch
-                logger.info("QQ点赞接口确认：target=%s batch=%s acknowledged=%s requested=%s；非到账确认", target, batch, result.acknowledged, count)
                 if offset+batch < count:
                     await asyncio.sleep(interval)
         finally:
-            logger.info("QQ点赞结束：target=%s acknowledged=%s requested=%s reason=%s；非到账确认", target, result.acknowledged, count, result.reason or "接口未报错")
             self.busy.discard(bot)
             # Start the retry window after completion, including cancellation.
             for key in keys:

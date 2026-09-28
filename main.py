@@ -38,7 +38,7 @@ def number(config, key, default, low, high):
         return default
 
 
-@register('astrbot_plugin_qq_like','wzq10314','QQ点赞、状态图、哔咔漫画(pica)、PIXIV(pixiv_reborn)','1.6.0')
+@register('astrbot_plugin_qq_like','wzq10314','QQ点赞、状态图、哔咔漫画(pica)、PIXIV(pixiv_reborn)','1.6.1')
 class QQLike(ExtraFeatures, Star):
     def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
