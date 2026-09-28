@@ -1,4 +1,4 @@
-# 示例配置，以AstrBot后台为准
+# Example defaults only; configure credentials in AstrBot WebUI.
 {
   "llm_enabled": true,
   "enabled": true,
@@ -76,5 +76,8 @@
   "api_proxy_host": "",
   "random_search_min_interval": 60,
   "random_search_max_interval": 120,
-  "random_sent_illust_retention_days": 7
+  "random_sent_illust_retention_days": 7,
+  "menu_bot_name": "",
+  "pica_llm_enabled": true,
+  "pixiv_commands_llm_enabled": true
 }

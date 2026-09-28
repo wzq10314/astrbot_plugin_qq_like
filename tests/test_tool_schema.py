@@ -23,7 +23,7 @@ class ToolSchemas(unittest.TestCase):
                 self.assertEqual({p.arg_name for p in parsed.params},expected,node.name)
                 for param in parsed.params:
                     self.assertIn(param.type_name,{'string','number','object','array','boolean'},node.name)
-        self.assertEqual(count,2)
+        self.assertEqual(count,4)
 
     def test_old_type_is_rejected(self):
         parsed=docstring_parser.parse('Test.\n\nArgs:\n    page(integer): page number')

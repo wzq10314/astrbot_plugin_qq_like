@@ -95,18 +95,17 @@ class IllustHandler:
             # 包装同步搜索调用
             async def request(candidate):
                 result = await self.client_wrapper.call_pixiv_api(
-                    self.client.search_illust,
-                    candidate,
+                    self.client.search_illust, candidate,
                     search_target="partial_match_for_tags",
                 )
-                if getattr(result, "error", None):
-                    raise RuntimeError("PIXIV 搜索接口返回错误，未继续尝试简繁搜索。")
+                if getattr(result, "error", None) or not hasattr(result, "illusts"):
+                    raise RuntimeError("PIXIV 搜索接口返回异常，未继续尝试简繁搜索。")
                 return result
             search_result, matched_tags = await search_with_variants(
                 search_tags, request, lambda value: bool(value.illusts),
             )
             if matched_tags != search_tags:
-                yield event.plain_result(f"已自动改用「{matched_tags}」进行简繁兼容搜索。")
+                yield event.plain_result(f"🔍 原词没有结果，改用「{matched_tags}」找到啦～")
             initial_illusts = search_result.illusts if search_result.illusts else []
             if not initial_illusts:
                 yield event.plain_result("未找到相关插画。")

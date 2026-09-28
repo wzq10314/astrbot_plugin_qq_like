@@ -10,6 +10,7 @@ from ..utils.pixiv_utils import (
 
 from .database import get_all_subscriptions, update_last_notified_id
 from .tag import build_detail_message
+from .forward_delivery import as_forward_result
 
 
 class SubscriptionService:
@@ -158,7 +159,7 @@ class SubscriptionService:
             ):
                 if message_content:
                     if hasattr(message_content, "chain"):
-                        await self.context.send_message(session_id_str, message_content)
+                        await self.context.send_message(session_id_str, as_forward_result(mock_event, message_content))
                     else:
                         # 如果不是 MessageChain 对象，创建一个
                         message_chain = MessageChain()

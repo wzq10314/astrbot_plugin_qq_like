@@ -273,6 +273,20 @@ class FanboxDownloadManager:
                         post_dir = posts_root / f"{post.id}_{sanitize_filename(post.title)}"
                         post_dir.mkdir(parents=True, exist_ok=True)
                         self._write_content_md(post_dir, post, creator_id)
+                        # 保存下载源，回看本地图片时仍可提供未压缩的原始链接。
+                        source_path = post_dir / "image_sources.json"
+                        try:
+                            sources = json.loads(source_path.read_text(encoding="utf-8"))
+                            if not isinstance(sources, dict):
+                                sources = {}
+                        except (OSError, ValueError):
+                            sources = {}
+                        sources.update({
+                            f"{idx:03d}.{asset.extension or 'jpg'}": asset.url
+                            for idx, asset in enumerate(assets, start=1)
+                            if isinstance(asset, FanboxImage)
+                        })
+                        source_path.write_text(json.dumps(sources, ensure_ascii=False), encoding="utf-8")
 
                         results = await asyncio.gather(
                             *(

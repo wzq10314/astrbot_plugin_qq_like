@@ -1,3 +1,4 @@
+from contextlib import aclosing
 import asyncio
 import time
 import secrets
@@ -11,6 +12,8 @@ from astrbot.api.message_components import At, Plain
 
 from .service import LikeService
 from .extras import ExtraFeatures
+from .image_menus import send_image_menu
+from .natural_commands import dispatch_command
 from .pica.plugin import PicaHelper
 from .pixiv_reborn.plugin import PixivHelper
 from .pixiv_reborn.utils.database import init_database as init_pixiv_db
@@ -35,7 +38,7 @@ def number(config, key, default, low, high):
         return default
 
 
-@register('astrbot_plugin_qq_like','wzq10314','QQ点赞、状态图、哔咔漫画(pica)、PIXIV(pixiv_reborn)','1.5.0')
+@register('astrbot_plugin_qq_like','wzq10314','QQ点赞、状态图、哔咔漫画(pica)、PIXIV(pixiv_reborn)','1.6.0')
 class QQLike(ExtraFeatures, Star):
     def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
@@ -172,17 +175,57 @@ class QQLike(ExtraFeatures, Star):
         async for result in ExtraFeatures.on_extra(self,event):
             yield result
 
+    @filter.llm_tool(name='pica_commands')
+    async def pica_commands_tool(self, event: AstrMessageEvent, command: str, parameters: dict = None, user_requested_change: bool = False) -> str:
+        """用自然语言调用 PICA 功能，无需让用户背指令。支持中文短命令及旧英文别名。
+        关键词、PID、画师ID、页码等必须来自用户或本轮真实查询结果；缺少必要参数先询问，不猜测。
+        登录不经模型处理凭据，只返回私聊绑定指引；不要把密码、Cookie或Token放进参数。
+        只有用户明确要求下载、收藏、订退订、签到、停止下载、推送、设置、清理等操作时，才把 user_requested_change 设为 true；仅咨询功能时不执行修改。
+        调用沿用真实发起用户身份和原命令权限。结果直接回复会话，工具结束不代表业务成功；不得重复发送或遇错自动重试。
+        pica下载的ep支持单章"1"、连续章节"1-5"、指定章节"1,3,7"、组合"1-3,7"；省略ep为整本下载。多章任务在后台完成，不要重复调用同一下载。
+        可用命令及参数名：pica帮助(args)；pica；pica登录(仅返回私聊绑定指引)；pica退出；pica状态；pica搜索(keyword,page)；pica详情(comic_id)；pica章节(comic_id)；pica下载(comic_id,ep)；pica排行(tt)；pica分类(category,page)；pica分区；pica收藏(comic_id)；pica我的收藏(page)；pica签到；pica清理(days)。
+        parameters是对象，例如搜索风景使用{"tags":"风景"}（Pixiv）或{"keyword":"星空旅行","page":1}（PICA）；PID使用{"illust_id":"用户给出的PID"}。无参数传空对象。
+
+        Args:
+            command(string): 完整命令名，例如pica搜索，不含参数或斜杠。
+            parameters(object): 按上述参数名传值的对象，不提供时使用原命令默认值；不要传账号凭据。
+            user_requested_change(boolean): 用户明确要求改变状态、推送或下载时为true，纯查询为false。
+        """
+        return await dispatch_command(self, event, 'pica', command, parameters, user_requested_change)
+
+    @filter.llm_tool(name='pixiv_commands')
+    async def pixiv_commands_tool(self, event: AstrMessageEvent, command: str, parameters: dict = None, user_requested_change: bool = False) -> str:
+        """用自然语言调用 PIXIV 功能，无需让用户背指令。支持中文短命令及旧英文别名。
+        关键词、PID、画师ID、页码等必须来自用户或本轮真实查询结果；缺少必要参数先询问，不猜测。
+        登录不经模型处理凭据，只返回私聊绑定指引；不要把密码、Cookie或Token放进参数。
+        只有用户明确要求下载、收藏、订退订、签到、停止下载、推送、设置、清理等操作时，才把 user_requested_change 设为 true；仅咨询功能时不执行修改。
+        调用沿用真实发起用户身份和原命令权限。结果直接回复会话，工具结束不代表业务成功；不得重复发送或遇错自动重试。
+        可用命令及参数名：pixiv(tags)；pixiv最新(content_type,max_illust_id)；pixiv推荐(args)；pixiv组合(tags)；pixivpid(illust_id)；pixiv排行(mode,date)；pixiv相关(illust_id)；pixiv深搜(tags)；pixiv评论(illust_id,offset)；pixiv特辑(showcase_id)；pixiv搜画师(username)；pixiv画师(user_id)；pixiv作品(user_id)；pixiv小说(tags)；pixiv小说推荐；pixiv最新小说(max_novel_id)；pixiv小说系列(series_id)；pixiv小说评论(novel_id,offset)；pixiv小说下载(novel_id)；pixiv订阅(artist_id)；pixiv退订(artist_id)；pixiv订阅列表(args)；pixiv帮助(args)；pixiv添加标签(tags)；pixiv删除标签(index)；pixiv标签列表(args)；pixiv暂停推送；pixiv恢复推送；pixiv推送状态；pixiv立即推送；pixiv添加榜单(mode,date)；pixiv删除榜单(index)；pixiv榜单列表(args)；pixiv热词；pixivAI设置(setting)；pixiv设置(arg1,arg2)；pixiv热门(tag,duration,pages)；pixiv赞助作者(creator_input,limit)；pixiv赞助帖子(args)；pixiv赞助推荐(args)；pixiv赞助搜索(keyword,limit)；pixiv赞助下载(args)；pixiv下载进度；pixiv停止下载；pixiv已下载(args)。
+        parameters是对象，例如搜索风景使用{"tags":"风景"}（Pixiv）或{"keyword":"星空旅行","page":1}（PICA）；PID使用{"illust_id":"用户给出的PID"}。无参数传空对象。
+
+        Args:
+            command(string): 完整命令名，例如pixivpid，不含参数或斜杠。
+            parameters(object): 按上述参数名传值的对象，不提供时使用原命令默认值；不要传账号凭据。
+            user_requested_change(boolean): 用户明确要求改变状态、推送或下载时为true，纯查询为false。
+        """
+        return await dispatch_command(self, event, 'pixiv', command, parameters, user_requested_change)
+
     # ========== pica 命令转发 ==========
 
-    @filter.command("pica帮助", alias={'picahelp'})
-    async def picahelp(self, event: AstrMessageEvent):
+    @filter.command('pica帮助', alias={'picahelp'})
+    async def picahelp(self, event: AstrMessageEvent, args: str = ""):
+        event.stop_event()
         if not self.config.get('pica_enabled', False):
-            yield event.plain_result('未启用：哔咔功能已关闭（需管理员在后台配置 pica_enabled）')
+            await event.send(event.plain_result('未启用：哔咔功能已关闭（需管理员在后台配置 pica_enabled）'))
             return
-        async for r in self.pica.help_command(event):
-            yield r
+        if args.strip().lower() in {'', '图片', '菜单', 'image'}:
+            if await send_image_menu(event, 'pica', self.config):
+                return
+        async with aclosing(self.pica.help_command(event)) as results:
+            async for result in results:
+                await event.send(result)
 
-    @filter.command("pica")
+    @filter.command('pica')
     async def pica_cmd(self, event: AstrMessageEvent):
         if not self.config.get('pica_enabled', False):
             yield event.plain_result('未启用：哔咔功能已关闭')
@@ -190,7 +233,7 @@ class QQLike(ExtraFeatures, Star):
         async for r in self.pica.pica_command(event):
             yield r
 
-    @filter.command("pica登录", alias={'picalogin'})
+    @filter.command('pica登录', alias={'picalogin'})
     async def picalogin(self, event: AstrMessageEvent, email=None, password=None):
         if not self.config.get('pica_enabled', False):
             yield event.plain_result('未启用：哔咔功能已关闭')
@@ -198,7 +241,7 @@ class QQLike(ExtraFeatures, Star):
         async for r in self.pica.login_command(event, email, password):
             yield r
 
-    @filter.command("pica退出", alias={'picalogout'})
+    @filter.command('pica退出', alias={'picalogout'})
     async def picalogout(self, event: AstrMessageEvent):
         if not self.config.get('pica_enabled', False):
             yield event.plain_result('未启用：哔咔功能已关闭')
@@ -206,7 +249,7 @@ class QQLike(ExtraFeatures, Star):
         async for r in self.pica.logout_command(event):
             yield r
 
-    @filter.command("pica状态", alias={'picastatus'})
+    @filter.command('pica状态', alias={'picastatus'})
     async def picastatus(self, event: AstrMessageEvent):
         if not self.config.get('pica_enabled', False):
             yield event.plain_result('未启用：哔咔功能已关闭')
@@ -214,15 +257,33 @@ class QQLike(ExtraFeatures, Star):
         async for r in self.pica.status_command(event):
             yield r
 
-    @filter.command("pica搜索", alias={'picasearch'})
-    async def picasearch(self, event: AstrMessageEvent, keyword=None, page=1):
-        if not self.config.get('pica_enabled', False):
-            yield event.plain_result('未启用：哔咔功能已关闭')
-            return
-        async for r in self.pica.search_command(event, keyword, page):
-            yield r
+    async def _send_pica_search(self, event, keyword, page):
+        # Consume results here so a hook after the waiting reply cannot stop the query.
+        final_text = ''
+        try:
+            async with asyncio.timeout(90):
+                async with aclosing(self.pica.search_command(event, keyword, page)) as results:
+                    async for result in results:
+                        await event.send(result)
+                        final_text = '\n'.join(str(part.text) for part in getattr(result, 'chain', [])
+                                               if isinstance(part, Plain))
+        except asyncio.TimeoutError:
+            final_text = '搜索等待超时了，请稍后再试一次～不要重复发送账号密码。'
+            await event.send(event.plain_result(final_text))
+        except Exception as exc:
+            logger.warning('PICA 搜索处理或发送失败：%s', type(exc).__name__)
+            return '未确认搜索结果送达，请勿声称已发送或自动重试。'
+        return '搜索处理已结束，以上消息已直接回复用户，请勿重复发送列表，也不要编造结果。实际最后一条回复：\n' + final_text
 
-    @filter.command("pica详情", alias={'picainfo'})
+    @filter.command('pica搜索', alias={'picasearch'})
+    async def picasearch(self, event: AstrMessageEvent, keyword=None, page=1):
+        event.stop_event()
+        if not self.config.get('pica_enabled', False):
+            await event.send(event.plain_result('未启用：哔咔功能已关闭'))
+            return
+        await self._send_pica_search(event, keyword, page)
+
+    @filter.command('pica详情', alias={'picainfo'})
     async def picainfo(self, event: AstrMessageEvent, comic_id=None):
         if not self.config.get('pica_enabled', False):
             yield event.plain_result('未启用：哔咔功能已关闭')
@@ -230,7 +291,7 @@ class QQLike(ExtraFeatures, Star):
         async for r in self.pica.info_command(event, comic_id):
             yield r
 
-    @filter.command("pica章节", alias={'picaeps'})
+    @filter.command('pica章节', alias={'picaeps'})
     async def picaeps(self, event: AstrMessageEvent, comic_id=None):
         if not self.config.get('pica_enabled', False):
             yield event.plain_result('未启用：哔咔功能已关闭')
@@ -238,7 +299,7 @@ class QQLike(ExtraFeatures, Star):
         async for r in self.pica.episodes_command(event, comic_id):
             yield r
 
-    @filter.command("pica下载", alias={'picadl'})
+    @filter.command('pica下载', alias={'picadl'})
     async def picadl(self, event: AstrMessageEvent, comic_id=None, ep=None):
         if not self.config.get('pica_enabled', False):
             yield event.plain_result('未启用：哔咔功能已关闭')
@@ -246,7 +307,7 @@ class QQLike(ExtraFeatures, Star):
         async for r in self.pica.download_command(event, comic_id, ep):
             yield r
 
-    @filter.command("pica排行", alias={'picarank'})
+    @filter.command('pica排行', alias={'picarank'})
     async def picarank(self, event: AstrMessageEvent, tt="H24"):
         if not self.config.get('pica_enabled', False):
             yield event.plain_result('未启用：哔咔功能已关闭')
@@ -254,7 +315,7 @@ class QQLike(ExtraFeatures, Star):
         async for r in self.pica.rank_command(event, tt):
             yield r
 
-    @filter.command("pica分类", alias={'picacomics'})
+    @filter.command('pica分类', alias={'picacomics'})
     async def picacomics(self, event: AstrMessageEvent, category=None, page=1):
         if not self.config.get('pica_enabled', False):
             yield event.plain_result('未启用：哔咔功能已关闭')
@@ -262,7 +323,7 @@ class QQLike(ExtraFeatures, Star):
         async for r in self.pica.comics_command(event, category, page):
             yield r
 
-    @filter.command("pica分区", alias={'picacat'})
+    @filter.command('pica分区', alias={'picacat'})
     async def picacat(self, event: AstrMessageEvent):
         if not self.config.get('pica_enabled', False):
             yield event.plain_result('未启用：哔咔功能已关闭')
@@ -270,7 +331,7 @@ class QQLike(ExtraFeatures, Star):
         async for r in self.pica.categories_command(event):
             yield r
 
-    @filter.command("pica收藏", alias={'picafav'})
+    @filter.command('pica收藏', alias={'picafav'})
     async def picafav(self, event: AstrMessageEvent, comic_id=None):
         if not self.config.get('pica_enabled', False):
             yield event.plain_result('未启用：哔咔功能已关闭')
@@ -278,7 +339,7 @@ class QQLike(ExtraFeatures, Star):
         async for r in self.pica.favourite_command(event, comic_id):
             yield r
 
-    @filter.command("pica我的收藏", alias={'picamyfav'})
+    @filter.command('pica我的收藏', alias={'picamyfav'})
     async def picamyfav(self, event: AstrMessageEvent, page=1):
         if not self.config.get('pica_enabled', False):
             yield event.plain_result('未启用：哔咔功能已关闭')
@@ -286,7 +347,7 @@ class QQLike(ExtraFeatures, Star):
         async for r in self.pica.my_favourite_command(event, page):
             yield r
 
-    @filter.command("pica签到", alias={'picapunch'})
+    @filter.command('pica签到', alias={'picapunch'})
     async def picapunch(self, event: AstrMessageEvent):
         if not self.config.get('pica_enabled', False):
             yield event.plain_result('未启用：哔咔功能已关闭')
@@ -294,7 +355,7 @@ class QQLike(ExtraFeatures, Star):
         async for r in self.pica.punch_command(event):
             yield r
 
-    @filter.command("pica清理", alias={'picaclean'})
+    @filter.command('pica清理', alias={'picaclean'})
     async def picaclean(self, event: AstrMessageEvent, days=None):
         if not self.config.get('pica_enabled', False):
             yield event.plain_result('未启用：哔咔功能已关闭')
@@ -304,240 +365,260 @@ class QQLike(ExtraFeatures, Star):
 
     # ========== pixiv 命令转发 ==========
 
-    @filter.command("pixiv", alias={'pixiv搜索'})
+    async def _send_pixiv_command(self, event, stream):
+        """Keep progress and final replies inside one command coroutine."""
+        event.stop_event()
+        async with aclosing(stream) as results:
+            async for result in results:
+                await event.send(result)
+
+    @filter.command('pixiv', alias={'pixiv搜索'})
     async def cmd_pixiv(self, event: AstrMessageEvent, tags: str = ""):
         event.stop_event()
         request_id = secrets.token_hex(4)
         started = time.monotonic()
-        logger.info(f"Pixiv 查询 {request_id}：开始；总等待上限 45 秒。")
+        logger.info(f"Pixiv 查询 {request_id}：开始；准备预算 45 秒，QQ 发送独立等待。")
         try:
-            async for result in bounded_results(self.pixiv.pixiv_search_illust(event, tags)):
-                yield result
+            await self._send_pixiv_command(event, self.pixiv.pixiv_search_illust(event, tags))
         except asyncio.TimeoutError:
             logger.warning(f"Pixiv 查询 {request_id}：超时，耗时 {time.monotonic()-started:.1f} 秒。")
-            yield event.plain_result(f"PIXIV 查询等待超时（编号 {request_id}）。若已有部分结果请勿重复发送；请检查服务器网络和后台 OAuth 日志，不要发送 Token。")
+            await event.send(event.plain_result(f"PIXIV 查询等待超时（编号 {request_id}）。若已有部分结果请勿重复发送；请检查服务器网络和后台 OAuth 日志，不要发送 Token。"))
         except Exception as exc:
             logger.warning(f"Pixiv 查询 {request_id}：异常类型 {type(exc).__name__}，耗时 {time.monotonic()-started:.1f} 秒。")
-            yield event.plain_result(f"PIXIV 查询未完成（编号 {request_id}），请查看后台对应日志。")
+            await event.send(event.plain_result(f"PIXIV 查询未完成（编号 {request_id}），请查看后台对应日志。"))
         finally:
             logger.info(f"Pixiv 查询 {request_id}：处理结束，耗时 {time.monotonic()-started:.1f} 秒。")
 
-    @filter.command("pixiv最新", alias={'pixiv_illust_new'})
+
+    @filter.command('pixiv最新', alias={'pixiv_illust_new'})
     async def cmd_pixiv_illust_new(self, event: AstrMessageEvent, content_type: str = "illust", max_illust_id: str = ""):
-        async for r in self.pixiv.pixiv_illust_new(event, content_type, max_illust_id):
-            yield r
+        await self._send_pixiv_command(event, self.pixiv.pixiv_illust_new(event, content_type, max_illust_id))
 
-    @filter.command("pixiv推荐", alias={'pixiv_recommended'})
+
+    @filter.command('pixiv推荐', alias={'pixiv_recommended'})
     async def cmd_pixiv_recommended(self, event: AstrMessageEvent, args: str = ""):
-        async for r in self.pixiv.pixiv_recommended(event, args):
-            yield r
+        await self._send_pixiv_command(event, self.pixiv.pixiv_recommended(event, args))
 
-    @filter.command("pixiv组合", alias={'pixiv_and'})
+
+    @filter.command('pixiv组合', alias={'pixiv_and'})
     async def cmd_pixiv_and(self, event: AstrMessageEvent, tags: str = ""):
-        async for r in self.pixiv.pixiv_and(event, tags):
-            yield r
+        await self._send_pixiv_command(event, self.pixiv.pixiv_and(event, tags))
 
-    @filter.command("pixivpid", alias={'pixiv_specific'})
+
+    @filter.command('pixivpid', alias={'pixiv_specific'})
     async def cmd_pixiv_specific(self, event: AstrMessageEvent, illust_id: str = ""):
-        async for r in self.pixiv.pixiv_specific(event, illust_id):
-            yield r
+        event.stop_event()
+        logger.info("Pixiv PID：命令已接管，进入作品直查。")
+        async with aclosing(self.pixiv.pixiv_specific(event, illust_id)) as results:
+            async for result in results:
+                # Keep progress replies inside this coroutine so downstream
+                # response hooks cannot terminate the remaining image delivery.
+                await event.send(result)
+        logger.info("Pixiv PID：作品直查及回复流程已结束。")
 
-    @filter.command("pixiv排行", alias={'pixiv_ranking'})
+    @filter.command('pixiv排行', alias={'pixiv_ranking'})
     async def cmd_pixiv_ranking(self, event: AstrMessageEvent, mode: str = "", date: str = ""):
-        async for r in self.pixiv.pixiv_ranking(event, mode, date):
-            yield r
+        await self._send_pixiv_command(event, self.pixiv.pixiv_ranking(event, mode, date))
 
-    @filter.command("pixiv相关", alias={'pixiv_related'})
+
+    @filter.command('pixiv相关', alias={'pixiv_related'})
     async def cmd_pixiv_related(self, event: AstrMessageEvent, illust_id: str = ""):
-        async for r in self.pixiv.pixiv_related(event, illust_id):
-            yield r
+        await self._send_pixiv_command(event, self.pixiv.pixiv_related(event, illust_id))
 
-    @filter.command("pixiv深搜", alias={'pixiv_deepsearch'})
+
+    @filter.command('pixiv深搜', alias={'pixiv_deepsearch'})
     async def cmd_pixiv_deepsearch(self, event: AstrMessageEvent, tags: str = ""):
-        async for r in self.pixiv.pixiv_deepsearch(event, tags):
-            yield r
+        await self._send_pixiv_command(event, self.pixiv.pixiv_deepsearch(event, tags))
 
-    @filter.command("pixiv评论", alias={'pixiv_illust_comments'})
+
+    @filter.command('pixiv评论', alias={'pixiv_illust_comments'})
     async def cmd_pixiv_illust_comments(self, event: AstrMessageEvent, illust_id: str = "", offset: str = ""):
-        async for r in self.pixiv.pixiv_illust_comments(event, illust_id, offset):
-            yield r
+        await self._send_pixiv_command(event, self.pixiv.pixiv_illust_comments(event, illust_id, offset))
 
-    @filter.command("pixiv特辑", alias={'pixiv_showcase_article'})
+
+    @filter.command('pixiv特辑', alias={'pixiv_showcase_article'})
     async def cmd_pixiv_showcase_article(self, event: AstrMessageEvent, showcase_id: str = ""):
-        async for r in self.pixiv.pixiv_showcase_article(event, showcase_id):
-            yield r
+        await self._send_pixiv_command(event, self.pixiv.pixiv_showcase_article(event, showcase_id))
 
-    @filter.command("pixiv搜画师", alias={'pixiv_user_search'})
+
+    @filter.command('pixiv搜画师', alias={'pixiv_user_search'})
     async def cmd_pixiv_user_search(self, event: AstrMessageEvent, username: str = ""):
-        async for r in self.pixiv.pixiv_user_search(event, username):
-            yield r
+        await self._send_pixiv_command(event, self.pixiv.pixiv_user_search(event, username))
 
-    @filter.command("pixiv画师", alias={'pixiv_user_detail'})
+
+    @filter.command('pixiv画师', alias={'pixiv_user_detail'})
     async def cmd_pixiv_user_detail(self, event: AstrMessageEvent, user_id: str = ""):
-        async for r in self.pixiv.pixiv_user_detail(event, user_id):
-            yield r
+        await self._send_pixiv_command(event, self.pixiv.pixiv_user_detail(event, user_id))
 
-    @filter.command("pixiv作品", alias={'pixiv_user_illusts'})
+
+    @filter.command('pixiv作品', alias={'pixiv_user_illusts'})
     async def cmd_pixiv_user_illusts(self, event: AstrMessageEvent, user_id: str = ""):
-        async for r in self.pixiv.pixiv_user_illusts(event, user_id):
-            yield r
+        await self._send_pixiv_command(event, self.pixiv.pixiv_user_illusts(event, user_id))
 
-    @filter.command("pixiv小说", alias={'pixiv_novel'})
+
+    @filter.command('pixiv小说', alias={'pixiv_novel'})
     async def cmd_pixiv_novel(self, event: AstrMessageEvent, tags: str = ""):
-        async for r in self.pixiv.pixiv_novel(event, tags):
-            yield r
+        await self._send_pixiv_command(event, self.pixiv.pixiv_novel(event, tags))
 
-    @filter.command("pixiv小说推荐", alias={'pixiv_novel_recommended'})
+
+    @filter.command('pixiv小说推荐', alias={'pixiv_novel_recommended'})
     async def cmd_pixiv_novel_recommended(self, event: AstrMessageEvent):
-        async for r in self.pixiv.pixiv_novel_recommended(event):
-            yield r
+        await self._send_pixiv_command(event, self.pixiv.pixiv_novel_recommended(event))
 
-    @filter.command("pixiv最新小说", alias={'pixiv_novel_new'})
+
+    @filter.command('pixiv最新小说', alias={'pixiv_novel_new'})
     async def cmd_pixiv_novel_new(self, event: AstrMessageEvent, max_novel_id: str = ""):
-        async for r in self.pixiv.pixiv_novel_new(event, max_novel_id):
-            yield r
+        await self._send_pixiv_command(event, self.pixiv.pixiv_novel_new(event, max_novel_id))
 
-    @filter.command("pixiv小说系列", alias={'pixiv_novel_series'})
+
+    @filter.command('pixiv小说系列', alias={'pixiv_novel_series'})
     async def cmd_pixiv_novel_series(self, event: AstrMessageEvent, series_id: str = ""):
-        async for r in self.pixiv.pixiv_novel_series(event, series_id):
-            yield r
+        await self._send_pixiv_command(event, self.pixiv.pixiv_novel_series(event, series_id))
 
-    @filter.command("pixiv小说评论", alias={'pixiv_novel_comments'})
+
+    @filter.command('pixiv小说评论', alias={'pixiv_novel_comments'})
     async def cmd_pixiv_novel_comments(self, event: AstrMessageEvent, novel_id: str = "", offset: str = ""):
-        async for r in self.pixiv.pixiv_novel_comments(event, novel_id, offset):
-            yield r
+        await self._send_pixiv_command(event, self.pixiv.pixiv_novel_comments(event, novel_id, offset))
 
-    @filter.command("pixiv小说下载", alias={'pixiv_novel_download'})
+
+    @filter.command('pixiv小说下载', alias={'pixiv_novel_download'})
     async def cmd_pixiv_novel_download(self, event: AstrMessageEvent, novel_id: str = ""):
-        async for r in self.pixiv.pixiv_novel_download(event, novel_id):
-            yield r
+        await self._send_pixiv_command(event, self.pixiv.pixiv_novel_download(event, novel_id))
 
-    @filter.command("pixiv订阅", alias={'pixiv_subscribe_add'})
+
+    @filter.command('pixiv订阅', alias={'pixiv_subscribe_add'})
     async def cmd_pixiv_subscribe_add(self, event: AstrMessageEvent, artist_id: str = ""):
-        async for r in self.pixiv.pixiv_subscribe_add(event, artist_id):
-            yield r
+        await self._send_pixiv_command(event, self.pixiv.pixiv_subscribe_add(event, artist_id))
 
-    @filter.command("pixiv退订", alias={'pixiv_subscribe_remove'})
+
+    @filter.command('pixiv退订', alias={'pixiv_subscribe_remove'})
     async def cmd_pixiv_subscribe_remove(self, event: AstrMessageEvent, artist_id: str = ""):
-        async for r in self.pixiv.pixiv_subscribe_remove(event, artist_id):
-            yield r
+        await self._send_pixiv_command(event, self.pixiv.pixiv_subscribe_remove(event, artist_id))
 
-    @filter.command("pixiv订阅列表", alias={'pixiv_subscribe_list'})
+
+    @filter.command('pixiv订阅列表', alias={'pixiv_subscribe_list'})
     async def cmd_pixiv_subscribe_list(self, event: AstrMessageEvent, args: str = ""):
-        async for r in self.pixiv.pixiv_subscribe_list(event, args):
-            yield r
+        await self._send_pixiv_command(event, self.pixiv.pixiv_subscribe_list(event, args))
 
-    @filter.command("pixiv帮助", alias={'pixiv_help'})
+
+    @filter.command('pixiv帮助', alias={'pixiv_help'})
     async def cmd_pixiv_help(self, event: AstrMessageEvent, args: str = ""):
-        async for r in self.pixiv.pixiv_help(event, args):
-            yield r
+        event.stop_event()
+        if args.strip().lower() in {'', '图片', '菜单', 'image'}:
+            if await send_image_menu(event, 'pixiv', self.config):
+                return
+            args = ''
+        if args.strip().lower() in {'文字', '完整', 'text'}:
+            args = ''
+        await self._send_pixiv_command(event, self.pixiv.pixiv_help(event, args))
 
-    @filter.command("pixiv添加标签", alias={'pixiv_random_add'})
+
+    @filter.command('pixiv添加标签', alias={'pixiv_random_add'})
     async def cmd_pixiv_random_add(self, event: AstrMessageEvent, tags: str = ""):
-        async for r in self.pixiv.pixiv_random_add(event, tags):
-            yield r
+        await self._send_pixiv_command(event, self.pixiv.pixiv_random_add(event, tags))
 
-    @filter.command("pixiv删除标签", alias={'pixiv_random_del'})
+
+    @filter.command('pixiv删除标签', alias={'pixiv_random_del'})
     async def cmd_pixiv_random_del(self, event: AstrMessageEvent, index: str = ""):
-        async for r in self.pixiv.pixiv_random_del(event, index):
-            yield r
+        await self._send_pixiv_command(event, self.pixiv.pixiv_random_del(event, index))
 
-    @filter.command("pixiv标签列表", alias={'pixiv_random_list'})
+
+    @filter.command('pixiv标签列表', alias={'pixiv_random_list'})
     async def cmd_pixiv_random_list(self, event: AstrMessageEvent, args: str = ""):
-        async for r in self.pixiv.pixiv_random_list(event, args):
-            yield r
+        await self._send_pixiv_command(event, self.pixiv.pixiv_random_list(event, args))
 
-    @filter.command("pixiv暂停推送", alias={'pixiv_random_suspend'})
+
+    @filter.command('pixiv暂停推送', alias={'pixiv_random_suspend'})
     async def cmd_pixiv_random_suspend(self, event: AstrMessageEvent):
-        async for r in self.pixiv.pixiv_random_suspend(event):
-            yield r
+        await self._send_pixiv_command(event, self.pixiv.pixiv_random_suspend(event))
 
-    @filter.command("pixiv恢复推送", alias={'pixiv_random_resume'})
+
+    @filter.command('pixiv恢复推送', alias={'pixiv_random_resume'})
     async def cmd_pixiv_random_resume(self, event: AstrMessageEvent):
-        async for r in self.pixiv.pixiv_random_resume(event):
-            yield r
+        await self._send_pixiv_command(event, self.pixiv.pixiv_random_resume(event))
 
-    @filter.command("pixiv推送状态", alias={'pixiv_random_status'})
+
+    @filter.command('pixiv推送状态', alias={'pixiv_random_status'})
     async def cmd_pixiv_random_status(self, event: AstrMessageEvent):
-        async for r in self.pixiv.pixiv_random_status(event):
-            yield r
+        await self._send_pixiv_command(event, self.pixiv.pixiv_random_status(event))
 
-    @filter.command("pixiv立即推送", alias={'pixiv_random_force'})
+
+    @filter.command('pixiv立即推送', alias={'pixiv_random_force'})
     async def cmd_pixiv_random_force(self, event: AstrMessageEvent):
-        async for r in self.pixiv.pixiv_random_force(event):
-            yield r
+        await self._send_pixiv_command(event, self.pixiv.pixiv_random_force(event))
 
-    @filter.command("pixiv添加榜单", alias={'pixiv_random_ranking_add'})
+
+    @filter.command('pixiv添加榜单', alias={'pixiv_random_ranking_add'})
     async def cmd_pixiv_random_ranking_add(self, event: AstrMessageEvent, mode: str = "", date: str = ""):
-        async for r in self.pixiv.pixiv_random_ranking_add(event, mode, date):
-            yield r
+        await self._send_pixiv_command(event, self.pixiv.pixiv_random_ranking_add(event, mode, date))
 
-    @filter.command("pixiv删除榜单", alias={'pixiv_random_ranking_del'})
+
+    @filter.command('pixiv删除榜单', alias={'pixiv_random_ranking_del'})
     async def cmd_pixiv_random_ranking_del(self, event: AstrMessageEvent, index: str = ""):
-        async for r in self.pixiv.pixiv_random_ranking_del(event, index):
-            yield r
+        await self._send_pixiv_command(event, self.pixiv.pixiv_random_ranking_del(event, index))
 
-    @filter.command("pixiv榜单列表", alias={'pixiv_random_ranking_list'})
+
+    @filter.command('pixiv榜单列表', alias={'pixiv_random_ranking_list'})
     async def cmd_pixiv_random_ranking_list(self, event: AstrMessageEvent, args: str = ""):
-        async for r in self.pixiv.pixiv_random_ranking_list(event, args):
-            yield r
+        await self._send_pixiv_command(event, self.pixiv.pixiv_random_ranking_list(event, args))
 
-    @filter.command("pixiv热词", alias={'pixiv_trending_tags'})
+
+    @filter.command('pixiv热词', alias={'pixiv_trending_tags'})
     async def cmd_pixiv_trending_tags(self, event: AstrMessageEvent):
-        async for r in self.pixiv.pixiv_trending_tags(event):
-            yield r
+        await self._send_pixiv_command(event, self.pixiv.pixiv_trending_tags(event))
 
-    @filter.command("pixivAI设置", alias={'pixiv_ai_show_settings'})
+
+    @filter.command('pixivAI设置', alias={'pixiv_ai_show_settings'})
     async def cmd_pixiv_ai_show_settings(self, event: AstrMessageEvent, setting: str = ""):
-        async for r in self.pixiv.pixiv_ai_show_settings(event, setting):
-            yield r
+        await self._send_pixiv_command(event, self.pixiv.pixiv_ai_show_settings(event, setting))
 
-    @filter.command("pixiv设置", alias={'pixiv_config'})
+
+    @filter.command('pixiv设置', alias={'pixiv_config'})
     async def cmd_pixiv_config(self, event: AstrMessageEvent, arg1: str = "", arg2: str = ""):
-        async for r in self.pixiv.pixiv_config(event, arg1, arg2):
-            yield r
+        await self._send_pixiv_command(event, self.pixiv.pixiv_config(event, arg1, arg2))
 
-    @filter.command("pixiv热门", alias={'pixiv_hot'})
+
+    @filter.command('pixiv热门', alias={'pixiv_hot'})
     async def cmd_pixiv_hot(self, event: AstrMessageEvent, tag: str = "", duration: str = "", pages: str = ""):
-        async for r in self.pixiv.pixiv_hot(event, tag, duration, pages):
-            yield r
+        await self._send_pixiv_command(event, self.pixiv.pixiv_hot(event, tag, duration, pages))
 
-    @filter.command("pixiv赞助作者", alias={'pixiv_fanbox_creator'})
+
+    @filter.command('pixiv赞助作者', alias={'pixiv_fanbox_creator'})
     async def cmd_pixiv_fanbox_creator(self, event: AstrMessageEvent, creator_input: str = "", limit: str = ""):
-        async for r in self.pixiv.pixiv_fanbox_creator(event, creator_input, limit):
-            yield r
+        await self._send_pixiv_command(event, self.pixiv.pixiv_fanbox_creator(event, creator_input, limit))
 
-    @filter.command("pixiv赞助帖子", alias={'pixiv_fanbox_post'})
+
+    @filter.command('pixiv赞助帖子', alias={'pixiv_fanbox_post'})
     async def cmd_pixiv_fanbox_post(self, event: AstrMessageEvent, args: str = ""):
-        async for r in self.pixiv.pixiv_fanbox_post(event, args):
-            yield r
+        await self._send_pixiv_command(event, self.pixiv.pixiv_fanbox_post(event, args))
 
-    @filter.command("pixiv赞助推荐", alias={'pixiv_fanbox_recommended'})
+
+    @filter.command('pixiv赞助推荐', alias={'pixiv_fanbox_recommended'})
     async def cmd_pixiv_fanbox_recommended(self, event: AstrMessageEvent, args: str = "5"):
-        async for r in self.pixiv.pixiv_fanbox_recommended(event, args):
-            yield r
+        await self._send_pixiv_command(event, self.pixiv.pixiv_fanbox_recommended(event, args))
 
-    @filter.command("pixiv赞助搜索", alias={'pixiv_fanbox_artist'})
+
+    @filter.command('pixiv赞助搜索', alias={'pixiv_fanbox_artist'})
     async def cmd_pixiv_fanbox_artist(self, event: AstrMessageEvent, keyword: str = "", limit: str = ""):
-        async for r in self.pixiv.pixiv_fanbox_artist(event, keyword, limit):
-            yield r
+        await self._send_pixiv_command(event, self.pixiv.pixiv_fanbox_artist(event, keyword, limit))
 
-    @filter.command("pixiv赞助下载", alias={'pixiv_fanbox_dl'})
+
+    @filter.command('pixiv赞助下载', alias={'pixiv_fanbox_dl'})
     async def cmd_pixiv_fanbox_dl(self, event: AstrMessageEvent, args: str = ""):
-        async for r in self.pixiv.pixiv_fanbox_dl(event, args):
-            yield r
+        await self._send_pixiv_command(event, self.pixiv.pixiv_fanbox_dl(event, args))
 
-    @filter.command("pixiv下载进度", alias={'pixiv_fanbox_dl_status'})
+
+    @filter.command('pixiv下载进度', alias={'pixiv_fanbox_dl_status'})
     async def cmd_pixiv_fanbox_dl_status(self, event: AstrMessageEvent):
-        async for r in self.pixiv.pixiv_fanbox_dl_status(event):
-            yield r
+        await self._send_pixiv_command(event, self.pixiv.pixiv_fanbox_dl_status(event))
 
-    @filter.command("pixiv停止下载", alias={'pixiv_fanbox_dl_stop'})
+
+    @filter.command('pixiv停止下载', alias={'pixiv_fanbox_dl_stop'})
     async def cmd_pixiv_fanbox_dl_stop(self, event: AstrMessageEvent):
-        async for r in self.pixiv.pixiv_fanbox_dl_stop(event):
-            yield r
+        await self._send_pixiv_command(event, self.pixiv.pixiv_fanbox_dl_stop(event))
 
-    @filter.command("pixiv已下载", alias={'pixiv_fanbox_dl_view'})
+
+    @filter.command('pixiv已下载', alias={'pixiv_fanbox_dl_view'})
     async def cmd_pixiv_fanbox_dl_view(self, event: AstrMessageEvent, args: str = ""):
-        async for r in self.pixiv.pixiv_fanbox_dl_view(event, args):
-            yield r
+        await self._send_pixiv_command(event, self.pixiv.pixiv_fanbox_dl_view(event, args))
+

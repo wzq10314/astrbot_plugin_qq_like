@@ -63,7 +63,7 @@
   "pica_account": {
     "type": "string",
     "description": "哔咔默认账号(邮箱)",
-    "hint": "在 https://pica.life 注册的账号邮箱。用户可用 /picalogin 绑定自己的账号。",
+    "hint": "在 https://pica.life 注册的账号邮箱。用户可用 /pica登录 绑定自己的账号。",
     "default": ""
   },
   "pica_password": {
@@ -75,7 +75,7 @@
   "allow_default_account": {
     "type": "bool",
     "description": "允许未绑定用户使用默认账号",
-    "hint": "关闭后，每个QQ用户必须用 /picalogin 绑定自己的哔咔账号才能使用",
+    "hint": "关闭后，每个QQ用户必须用 /pica登录 绑定自己的哔咔账号才能使用",
     "default": true
   },
   "pica_use_proxy": {
@@ -127,7 +127,13 @@
     "description": "哔咔下载打包格式",
     "hint": "images=直接发送图片; zip=压缩包; pdf=PDF文档; long_img=纵向长图; none=仅本地保存",
     "default": "zip",
-    "options": ["images", "zip", "pdf", "long_img", "none"]
+    "options": [
+      "images",
+      "zip",
+      "pdf",
+      "long_img",
+      "none"
+    ]
   },
   "pack_password": {
     "type": "string",
@@ -212,7 +218,11 @@
     "type": "string",
     "hint": "auto(官方优先失败回退Nekohouse)、official(仅官方API)、nekohouse(仅Nekohouse归档)",
     "default": "auto",
-    "options": ["auto", "official", "nekohouse"]
+    "options": [
+      "auto",
+      "official",
+      "nekohouse"
+    ]
   },
   "fanbox_api_proxy_host": {
     "type": "string",
@@ -279,7 +289,11 @@
     "type": "string",
     "hint": "'过滤 R18' (默认), '允许 R18', '仅 R18'",
     "default": "过滤 R18",
-    "options": ["过滤 R18", "允许 R18", "仅 R18"]
+    "options": [
+      "过滤 R18",
+      "允许 R18",
+      "仅 R18"
+    ]
   },
   "filter_r18g_only": {
     "description": "Pixiv额外过滤 R18G",
@@ -291,13 +305,21 @@
     "type": "string",
     "hint": "'显示 AI 作品' (默认), '过滤 AI 作品', '仅 AI 作品'",
     "default": "显示 AI 作品",
-    "options": ["显示 AI 作品", "过滤 AI 作品", "仅 AI 作品"]
+    "options": [
+      "显示 AI 作品",
+      "过滤 AI 作品",
+      "仅 AI 作品"
+    ]
   },
   "ai_detection_mode": {
     "description": "Pixiv AI 判定模式",
     "type": "string",
     "default": "field_or_tag",
-    "options": ["field_or_tag", "field_only", "tag_only"]
+    "options": [
+      "field_or_tag",
+      "field_only",
+      "tag_only"
+    ]
   },
   "min_bookmarks": {
     "description": "Pixiv最小书签数过滤阈值",
@@ -350,16 +372,24 @@
   "image_quality": {
     "description": "Pixiv默认发送的图片质量",
     "type": "string",
-    "hint": "'original' (原图), 'large' (大图), 'medium' (中图)",
+    "hint": "控制聊天预览：original 原图、large 大图、medium 中图。每张图片另附原图下载链接，不受预览画质和本地压缩影响。",
     "default": "medium",
-    "options": ["original", "large", "medium"]
+    "options": [
+      "original",
+      "large",
+      "medium"
+    ]
   },
   "image_send_method": {
     "description": "Pixiv图片发送方式",
     "type": "string",
-    "hint": "'url' (直接URL), 'file' (文件路径), 'byte' (base64)",
+    "hint": "url 直接URL、file 文件路径、byte base64；普通消息和合并转发均遵循此设置，且始终附带图片下载链接。",
     "default": "url",
-    "options": ["url", "file", "byte"]
+    "options": [
+      "url",
+      "file",
+      "byte"
+    ]
   },
   "pil_compress_quality": {
     "description": "Pixiv本地PIL压缩画质百分比",
@@ -408,6 +438,7 @@
   "image_proxy_host": {
     "type": "string",
     "description": "Pixiv图片反代服务器",
+    "hint": "支持域名或完整 HTTP(S) 地址（可带路径前缀）。预览、原图下载链接和图片请求共用此设置。",
     "default": "i.pixiv.re"
   },
   "use_image_proxy": {
@@ -441,5 +472,23 @@
     "default": 7,
     "min": 1,
     "max": 365
+  },
+  "menu_bot_name": {
+    "description": "图片菜单机器人名称",
+    "type": "string",
+    "default": "",
+    "hint": "Pixiv、PICA 图片菜单左上角显示的机器人名字。留空自动读取当前机器人昵称；最多显示20个字符。保存后重新打开菜单生效，较长名字自动缩小。"
+  },
+  "pica_llm_enabled": {
+    "description": "PICA自然语言调用",
+    "type": "bool",
+    "default": true,
+    "hint": "模型可调用PICA查询、下载、收藏等命令，遵守原命令权限。登录仅返回私聊绑定指引，不向模型提供密码。"
+  },
+  "pixiv_commands_llm_enabled": {
+    "description": "Pixiv全命令自然语言调用",
+    "type": "bool",
+    "default": true,
+    "hint": "让模型调用全部Pixiv简化命令，沿用等待提示、聊天记录、群聊失败私聊回退和原命令权限。原版独立Pixiv工具保持兼容。"
   }
 }

@@ -1,4 +1,5 @@
 import asyncio
+import json
 import re
 import os
 import shlex
@@ -16,6 +17,8 @@ import astrbot.api.message_components as Comp
 from ..utils.help import get_help_message
 from ..utils.pixiv_utils import (
     download_image,
+    image_download_text,
+    resolve_image_url,
     _build_image_from_bytes,
     _build_image_from_url,
 )
@@ -239,9 +242,14 @@ class FanboxHandler:
                         logger.warning(f"Pixiv 插件：Fanbox 下载发图失败 - {url} - {e}")
                         failed_urls.append(url)
 
-        message_tail = text_message
+        # 下载链接独立于详情开关；失败时也走同一 URL 处理入口。
+        message_tail = text_message if include_details or not target_images else ""
+        links = [image_download_text(url, f"图片下载 {index + 1}")
+                 for index, url in enumerate(target_images)]
+        if links:
+            message_tail += "\n\n" + "\n".join(links)
         if failed_urls:
-            preview = "\n".join(failed_urls[:3])
+            preview = "\n".join(resolve_image_url(url) for url in failed_urls[:3])
             more = ""
             if len(failed_urls) > 3:
                 more = f"\n... 还有 {len(failed_urls) - 3} 张发送失败"
@@ -251,7 +259,7 @@ class FanboxHandler:
             )
 
         if image_components:
-            if include_details or failed_urls:
+            if message_tail:
                 yield event.chain_result([*image_components, Comp.Plain(message_tail)])
             else:
                 # 纯图片模式：仅发送图片组件，不附加文本
@@ -1760,17 +1768,31 @@ class FanboxHandler:
         images = [f for f in files if f.suffix.lower() in self.IMAGE_SUFFIXES]
         attachments = [
             f for f in files
-            if f.suffix.lower() not in self.IMAGE_SUFFIXES and f.name != "content.md"
+            if f.suffix.lower() not in self.IMAGE_SUFFIXES
+            and f.name not in {"content.md", "image_sources.json"}
         ]
 
+        try:
+            sources = json.loads((post_dir / "image_sources.json").read_text(encoding="utf-8"))
+            if not isinstance(sources, dict):
+                sources = {}
+        except (OSError, ValueError):
+            sources = {}
         image_components = []
+        source_links = []
         for img_path in images[:10]:
             try:
                 image_components.append(Comp.Image.fromFileSystem(str(img_path)))
+                source_url = sources.get(img_path.name)
+                if isinstance(source_url, str) and source_url:
+                    source_links.append(image_download_text(source_url, f"原图下载 {img_path.name}"))
+                else:
+                    source_links.append(f"{img_path.name}: 旧缓存未记录原图链接，可使用 --pack 下载本地文件。")
             except Exception as e:
                 logger.warning(f"Pixiv 插件：Fanbox 本地图片构建失败 - {img_path} - {e}")
 
         tail_parts = []
+        tail_parts.extend(source_links)
         if len(images) > 10:
             tail_parts.append(f"图片仅发送前 10 张（共 {len(images)} 张）")
         if attachments:

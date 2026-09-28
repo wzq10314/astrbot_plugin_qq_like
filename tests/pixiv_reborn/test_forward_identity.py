@@ -10,7 +10,7 @@ import pytest
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("single_batch", [False, True])
-async def test_summary_and_images_use_bot_identity(single_batch):
+async def test_summary_and_images_preserve_forward_assembly(single_batch):
     source = Path(__file__).resolve().parents[2] / "pixiv_reborn/utils/pixiv_utils.py"
     tree = ast.parse(source.read_text(encoding="utf-8"))
     fn = next(n for n in tree.body if isinstance(n, ast.AsyncFunctionDef)
@@ -23,6 +23,8 @@ async def test_summary_and_images_use_bot_identity(single_batch):
         _config=NS(show_details=True, image_quality="medium"), _temp_dir=None,
         clean_temp_dir=AsyncMock(), record_illust=record,
         aiohttp=NS(ClientSession=lambda: session), logger=Mock(),
+        iter_image_sources=lambda img, detail, all_pages: [(img.image_urls, detail)],
+        build_image_content=AsyncMock(return_value=[b"fixture-image", "Details"]),
         download_image=AsyncMock(return_value=b"fixture-image"),
         _build_image_from_bytes=AsyncMock(side_effect=lambda data: data),
     )
@@ -37,7 +39,7 @@ async def test_summary_and_images_use_bot_identity(single_batch):
     assert len(results) == (1 if single_batch else 2)
     nodes = [node for result in results for node in result[0].nodes]
     assert len(nodes) == 12
-    assert all(node.uin == "570502551" for node in nodes)
+    assert all(node.name == "PixivBot" for node in nodes)
     assert nodes[0].content == ["Summary"]
     assert all(node.content == [b"fixture-image", "Details"] for node in nodes[1:])
     assert record.call_count == 11  # Still collect works for the original gallery.

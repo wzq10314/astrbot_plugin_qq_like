@@ -14,3 +14,5 @@
 简繁转换使用 [opencc-python-reimplemented](https://pypi.org/project/opencc-python-reimplemented/)（Apache-2.0），通过依赖安装，不在仓库内复制词库。
 
 本仓库只包含代码、示例配置与必要字体，不包含用户账号、令牌、订阅信息、数据库或下载的作品。
+
+图片菜单自定义标题使用 [霞鹜文楷](https://github.com/lxgw/LxgwWenKai)，采用 SIL Open Font License 1.1，字体与许可保留在 `assets/fonts/`。

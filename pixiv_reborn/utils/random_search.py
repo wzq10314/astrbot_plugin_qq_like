@@ -25,6 +25,7 @@ from .tag import (
     process_and_send_illusts,
 )
 from .pixiv_utils import send_pixiv_image, send_forward_message
+from .forward_delivery import as_forward_result
 
 
 class RandomSearchService:
@@ -416,7 +417,7 @@ class RandomSearchService:
 
                     try:
                         if hasattr(message_content, "chain"):
-                            await self.context.send_message(session_id, message_content)
+                            await self.context.send_message(session_id, as_forward_result(mock_event, message_content))
                             sent_illust_ids.update(related_illust_ids or [])
                         else:
                             # 纯文本或列表的回退
@@ -427,7 +428,7 @@ class RandomSearchService:
                                 pass
                             elif isinstance(message_content, MessageChain):
                                 await self.context.send_message(
-                                    session_id, message_content
+                                    session_id, as_forward_result(mock_event, message_content)
                                 )
                                 sent_illust_ids.update(related_illust_ids or [])
                             else:
@@ -545,10 +546,10 @@ class RandomSearchService:
                 if message_content:
                     try:
                         if hasattr(message_content, "chain"):
-                            await self.context.send_message(session_id, message_content)
+                            await self.context.send_message(session_id, as_forward_result(mock_event, message_content))
                             sent_illust_ids.update(related_illust_ids or [])
                         elif isinstance(message_content, MessageChain):
-                            await self.context.send_message(session_id, message_content)
+                            await self.context.send_message(session_id, as_forward_result(mock_event, message_content))
                             sent_illust_ids.update(related_illust_ids or [])
                         else:
                             chain = MessageChain().message(str(message_content))

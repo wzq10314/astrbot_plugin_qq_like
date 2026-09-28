@@ -1,4 +1,5 @@
 from typing import Any, List
+from ...search_variants import search_with_variants
 import hashlib
 import io
 import base64
@@ -11,6 +12,9 @@ from astrbot.core.agent.run_context import ContextWrapper
 from astrbot.core.agent.tool import FunctionTool, ToolExecResult
 from astrbot.core.astr_agent_context import AstrAgentContext
 from astrbot.api import logger
+from .forward_delivery import as_forward_result, is_forward, failure_details, ForwardDelivery, PrivateDeliveryError, notify_sender
+from .original_gallery import with_tool_gallery
+import secrets
 
 from .tag import (
     build_detail_message,
@@ -25,6 +29,19 @@ from .pixiv_utils import (
 )
 
 
+def illust_count_limit(config):
+    try:
+        return min(10, max(1, int(getattr(config, "return_count", 1))))
+    except (TypeError, ValueError):
+        return 1
+
+
+def requested_illust_count(config, requested=0):
+    limit = illust_count_limit(config)
+    value = int(requested or 0)
+    return limit if value <= 0 else min(value, limit)
+
+
 @dataclass
 class PixivIllustSearchTool(FunctionTool[AstrAgentContext]):
     """
@@ -33,6 +50,7 @@ class PixivIllustSearchTool(FunctionTool[AstrAgentContext]):
 
     pixiv_client: Any = None
     pixiv_config: Any = None
+    data_dir: Any = None
     pixiv_client_wrapper: Any = None
     name: str = "pixiv_search_illust"
     description: str = (
@@ -52,14 +70,13 @@ class PixivIllustSearchTool(FunctionTool[AstrAgentContext]):
                 "count": {
                     "type": "integer",
                     "description": (
-                        "【必填】返回图片数量。"
-                        "必须根据用户请求的数量填写！"
-                        "例如：'来两张图'→count=2，'给我三张'→count=3，'来点图'→count=3。"
-                        "如果用户没有明确说数量，默认设为1。最小1，最大5。"
+                        "用户明确要求的作品数量；例如两张填2。"
+                        "未指定数量时省略或填0，使用后台每次搜索返回数量。"
+                        "实际数量不超过后台上限，可能因搜索结果或筛选少于请求数量。"
                     ),
-                    "minimum": 1,
-                    "maximum": 5,
-                    "default": 1,
+                    "minimum": 0,
+                    "maximum": 10,
+                    "default": 0,
                 },
             },
             "required": ["query"],
@@ -71,7 +88,7 @@ class PixivIllustSearchTool(FunctionTool[AstrAgentContext]):
     ) -> ToolExecResult:
         try:
             query = kwargs.get("query", "")
-            count = min(max(int(kwargs.get("count", 1)), 1), 5)
+            count = requested_illust_count(self.pixiv_config, kwargs.get("count", 0))
             logger.info(f"Pixiv插画搜索工具：搜索 '{query}'，数量: {count}")
 
             if not self.pixiv_client:
@@ -106,13 +123,18 @@ class PixivIllustSearchTool(FunctionTool[AstrAgentContext]):
         while page_count < pages_to_fetch:
             try:
                 if page_count == 0:
-                    search_result = await asyncio.to_thread(
-                        self.pixiv_client.search_illust,
-                        tags,
-                        search_target="partial_match_for_tags",
-                        sort="date_desc",
-                        filter="for_ios",
-                        duration="within_last_week",  # 一周内
+                    async def request(candidate):
+                        result = await asyncio.to_thread(
+                            self.pixiv_client.search_illust, candidate,
+                            search_target="partial_match_for_tags",
+                            sort="date_desc", filter="for_ios",
+                            duration="within_last_week",
+                        )
+                        if getattr(result, "error", None) or not hasattr(result, "illusts"):
+                            raise RuntimeError("PIXIV 搜索接口返回异常，未继续尝试简繁搜索。")
+                        return result
+                    search_result, matched_tags = await search_with_variants(
+                        tags, request, lambda value: bool(value.illusts),
                     )
                 else:
                     if not next_params:
@@ -138,6 +160,8 @@ class PixivIllustSearchTool(FunctionTool[AstrAgentContext]):
                 await asyncio.sleep(0.2)
             except Exception as e:
                 logger.error(f"热度搜索第 {page_count + 1} 页出错: {e}")
+                if page_count == 0:
+                    raise
                 break
 
         if not all_illusts:
@@ -155,6 +179,7 @@ class PixivIllustSearchTool(FunctionTool[AstrAgentContext]):
         else:
             return self._format_text_results(sorted_illusts, query, tags)
 
+    @with_tool_gallery
     async def _send_pixiv_result(self, event, items, query, tags, count=1):
         """发送按热度排序的结果"""
         logger.info(f"PixivIllustSearchTool: 准备发送 {count} 张图片")
@@ -192,6 +217,8 @@ class PixivIllustSearchTool(FunctionTool[AstrAgentContext]):
 
         expected_count = min(len(filtered_items), config.return_count)
         sent_batches = 0
+        request_id = secrets.token_hex(4)
+        delivery = ForwardDelivery(event)
 
         try:
             async for result in process_and_send_illusts_sorted(
@@ -205,16 +232,27 @@ class PixivIllustSearchTool(FunctionTool[AstrAgentContext]):
                 is_novel=False,
             ):
                 try:
-                    await event.send(result)
-                    sent_batches += 1
+                    result = as_forward_result(event, result)
+                    if is_forward(result):
+                        await delivery.send(result)
+                        sent_batches += 1
+                    else:
+                        await event.send(result)
                 except Exception as e:
-                    logger.warning(f"发送图片失败: {e}")
+                    logger.warning("Pixiv LLM 转发 %s 失败：%s", request_id, type(e).__name__)
+                    if isinstance(e, PrivateDeliveryError):
+                        notice = delivery.failure_notice(request_id)
+                        await notify_sender(event, notice)
+                        return notice
+                    return failure_details(e, request_id)
 
             if sent_batches > 0:
-                mode = "转发消息" if config.forward_threshold else "普通消息"
+                if delivery.private_batches:
+                    notice = delivery.success_notice()
+                    return notice + "原图网页也会私聊发送；群内已引用原消息告知转私聊，不要重复提醒，也不要声称聊天记录已发到群里。"
                 return (
-                    f"🔥 找到了！为您发送了「{query}」一周内最热门的"
-                    f" {expected_count} 张作品（{mode}）。"
+                    f"「{query}」图片已提交为 {sent_batches} 条聊天记录，"
+                    "发送接口返回成功，请以聊天窗口实际收到的消息为准。"
                 )
 
             return "找到插画但发送失败，请稍后再试。"
@@ -485,5 +523,9 @@ def create_pixiv_llm_tools(
             pixiv_client_wrapper=pixiv_client_wrapper,
         ),
     ]
+    limit = illust_count_limit(pixiv_config)
+    count_parameter = tools[0].parameters["properties"]["count"]
+    count_parameter["maximum"] = limit
+    count_parameter["description"] += f" 当前后台上限为 {limit} 个作品；未指定时默认请求 {limit} 个。"
     logger.info(f"已创建 {len(tools)} 个LLM工具")
     return tools

@@ -97,6 +97,9 @@ class PixivHelper:
         self.llm_tools = create_pixiv_llm_tools(
             self.client, self.pixiv_config, self.client_wrapper
         )
+        for tool in self.llm_tools:
+            if getattr(tool, "name", "") == "pixiv_search_illust":
+                tool.data_dir = self.data_dir
         logger.info("Pixiv 插件：LLM工具已初始化。")
 
     @staticmethod
@@ -489,9 +492,11 @@ class PixivHelper:
             logger.error(error_msg)
             return error_msg
 
-# Wrap command-level result streams so one request produces one extra gallery.
+
+# Apply one transport boundary to every command, including future image commands.
+from .utils.forward_delivery import with_forward_delivery as _with_forward_delivery
 from .utils.original_gallery import with_original_gallery as _with_original_gallery
-import inspect as _gallery_inspect
-for _gallery_name, _gallery_method in list(PixivHelper.__dict__.items()):
-    if _gallery_name.startswith("pixiv_") and _gallery_inspect.isasyncgenfunction(_gallery_method):
-        setattr(PixivHelper, _gallery_name, _with_original_gallery(_gallery_method))
+import inspect as _delivery_inspect
+for _delivery_name, _delivery_method in list(PixivHelper.__dict__.items()):
+    if _delivery_name.startswith("pixiv_") and _delivery_inspect.isasyncgenfunction(_delivery_method):
+        setattr(PixivHelper, _delivery_name, _with_forward_delivery(_with_original_gallery(_delivery_method)))

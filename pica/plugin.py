@@ -14,6 +14,8 @@ vendored 子包使用。与上游的差异：
 """
 
 import asyncio
+import uuid
+from .chapters import parse_chapters, format_chapters
 from ..reader_settings import validate_reader_url
 from ..search_variants import search_with_variants
 import shutil
@@ -133,6 +135,13 @@ class PicaHelper:
                 await task
             except asyncio.CancelledError:
                 pass
+        downloads = list(self._all_download_tasks.values())
+        for download in downloads:
+            if not download.done():
+                download.cancel()
+        if downloads:
+            await asyncio.gather(*downloads, return_exceptions=True)
+        self._all_download_tasks.clear()
         try:
             await self.client.aclose()
         except Exception as e:
@@ -289,7 +298,7 @@ class PicaHelper:
         else:
             yield event.plain_result(
                 "❌ 未绑定哔咔账号\n"
-                "💡 发送 /pica登录 <邮箱> <密码> 绑定你自己的哔咔账号"
+                "💡 私聊发送 /pica登录 <邮箱> <密码> 绑定你自己的哔咔账号"
             )
 
     # ---------- 搜索 ----------
@@ -321,7 +330,7 @@ class PicaHelper:
                 lambda value: bool(value.get("docs")) or bool(value.get("total")),
             )
             if matched_keyword != keyword:
-                yield event.plain_result(f"已自动改用「{matched_keyword}」进行简繁兼容搜索。")
+                yield event.plain_result(f"🔍 原词没有结果，改用「{matched_keyword}」找到啦～")
             comics = result.get("docs", [])
             total = result.get("total", 0)
             page_size = int(self.config.get("pica_page_size", 10))
@@ -395,7 +404,8 @@ class PicaHelper:
     ):
         """
         下载：
-        - /pica下载 <ID> <章节号>   单章节下载（同步）
+        - /pica下载 <ID> <章节号>   单章节下载
+        - /pica下载 <ID> 1-5 或 1,3,7   多章节下载（后台任务）
         - /pica下载 <ID>            整本下载（后台任务，完成后通知）
         """
         denied = self._guard(event)
@@ -404,11 +414,16 @@ class PicaHelper:
             return
         if not comic_id:
             yield event.plain_result(
-                "❌ 用法:\n/pica下载 <ID> <章节号> 单章节\n/pica下载 <ID> 整本下载\n"
+                "❌ 用法:\n/pica下载 <ID> <章节号> 单章节\n/pica下载 <ID> 1-5 连续章节\n/pica下载 <ID> 1,3,7 指定章节\n/pica下载 <ID> 整本下载\n"
                 "例: /pica下载 5c4a17b19b7955ef19b0f7f5 1"
             )
             return
         comic_id = str(comic_id).strip()
+        try:
+            selected = parse_chapters(ep) if ep is not None and str(ep).strip() else None
+        except ValueError as exc:
+            yield event.plain_result(f"❌ {exc}")
+            return
 
         try:
             token = await self._auth_token(self._uid(event))
@@ -420,13 +435,30 @@ class PicaHelper:
             comic = await self.client.comic_info(comic_id, token)
             title = comic.get("title", comic_id) if comic else comic_id
 
-            if ep is not None and str(ep).strip():
-                # ---------- 单章节下载 ----------
-                try:
-                    ep_order = int(str(ep).strip())
-                except ValueError:
-                    yield event.plain_result("❌ 章节号必须是数字")
+            if selected and len(selected) > 1:
+                key = (self._uid(event), comic_id)
+                if key in self._all_download_tasks and not self._all_download_tasks[key].done():
+                    yield event.plain_result("⏳ 这本漫画已有章节下载任务，请等它完成后再试～")
                     return
+                eps = await self.client.episodes_all(comic_id, token)
+                available = {int(e["order"]) for e in eps if str(e.get("order", "")).isdigit()}
+                missing = sorted(set(selected) - available)
+                if missing:
+                    yield event.plain_result("❌ 没有这些章节：" + format_chapters(missing) + "。请先用 /pica章节 查看，本次未开始下载。")
+                    return
+                # Validation awaited the API; another request may have started meanwhile.
+                if key in self._all_download_tasks and not self._all_download_tasks[key].done():
+                    yield event.plain_result("⏳ 这本漫画已有章节下载任务，请等它完成后再试～")
+                    return
+                task = asyncio.create_task(self._download_selected_task(event, comic_id, title, token, selected))
+                self._all_download_tasks[key] = task
+                task.add_done_callback(lambda t, k=key: self._all_download_tasks.pop(k, None))
+                yield event.plain_result(f"📚 开始下载 [{title}] 第{format_chapters(selected)}话，共 {len(selected)} 章～完成后会自动通知你。")
+                return
+
+            if selected:
+                # ---------- 单章节下载 ----------
+                ep_order = selected[0]
                 yield event.plain_result(
                     f"⏬ 开始下载 [{title}] 第{ep_order}话，请稍候..."
                 )
@@ -442,7 +474,7 @@ class PicaHelper:
                     yield event.plain_result("❌ 下载失败，未获取到任何图片")
                     return
                 yield event.plain_result(
-                    f"📦 第{ep_order}话已下载 {len(images)} 张，正在整理下载结果，请稍候…"
+                    f"✅ 第{ep_order}话下载完成，共 {len(images)} 张"
                 )
                 # 发送（按打包格式）
                 chain = await self._build_download_result(
@@ -457,7 +489,7 @@ class PicaHelper:
             key = (self._uid(event), comic_id)
             if key in self._all_download_tasks and not self._all_download_tasks[key].done():
                 yield event.plain_result(
-                    "⏳ 该本子正在整本下载中，请勿重复请求"
+                    "⏳ 这本漫画已有章节下载任务，请勿重复请求"
                 )
                 return
 
@@ -474,6 +506,67 @@ class PicaHelper:
         except Exception as e:
             logger.error(f"下载异常: {e}")
             yield event.plain_result(f"❌ 下载失败: {e}")
+
+    async def _download_selected_task(self, event, comic_id, title, token, orders):
+        """Isolated selection job: no cached/unrequested chapters enter this bundle."""
+        umo = event.unified_msg_origin
+        root_dir = self.downloader.cache_dir() / ("selected_" + uuid.uuid4().hex)
+        root_dir.mkdir(parents=True)
+        failed = []
+        saved = []
+        total_images = 0
+        label = "第" + format_chapters(orders) + "话"
+        try:
+            step = max(1, len(orders) // 10)
+            for index, order in enumerate(orders, 1):
+                try:
+                    images = await self.downloader.download_episode(
+                        comic_id, order, token=token,
+                        max_concurrent=max(1, int(self.config.get("pica_max_concurrent", 5))),
+                        target_dir=root_dir,
+                    )
+                    if not images:
+                        raise PicaError("没有可用图片")
+                    # Numeric padding keeps reading/packing order correct (2 before 10).
+                    chapter = root_dir / f"ep{order}"
+                    chapter.rename(root_dir / f"ep{order:05d}")
+                    saved.append(order)
+                    total_images += len(images)
+                except asyncio.CancelledError:
+                    raise
+                except Exception as exc:
+                    failed.append(order)
+                    # Do not include any incomplete chapter folder on error.
+                    chapter = root_dir / f"ep{order}"
+                    if chapter.exists():
+                        chapter.rename(root_dir.parent / ("failed_" + uuid.uuid4().hex))
+                    logger.warning("PICA 多章节下载：第%s话失败，异常类型=%s。", order, type(exc).__name__)
+                if index % step == 0 or index == len(orders):
+                    try:
+                        await self.context.send_message(umo, MessageChain([Comp.Plain(
+                            f"⏳ [{title}] 已处理 {index}/{len(orders)} 章，成功 {len(saved)} 章～"
+                        )]))
+                    except Exception as exc:
+                        logger.warning("PICA 多章节进度通知未送达：%s。", type(exc).__name__)
+            if not saved:
+                await self.context.send_message(umo, MessageChain([Comp.Plain("❌ 本次所选章节都未下载成功，没有生成阅读页。")]))
+                return
+            notice = f"✅ [{title}] {label}已处理，获取 {len(saved)} 章，共 {total_images} 张。"
+            if failed:
+                notice += "\n⚠️ 未获取到这些章节：" + format_chapters(failed) + "；本次仅返回已下载章节。"
+            await self.context.send_message(umo, MessageChain([Comp.Plain(notice)]))
+            # Reuse the reader-first result path and its error handling.
+            pack_label = label if len(label) < 90 else f"选定{len(orders)}章_{uuid.uuid4().hex[:8]}"
+            chain = await self._build_download_result(comic_id, title, pack_label, root_dir, token, unique_output=True)
+            await self._send_with_retry(event, umo, chain)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            logger.warning("PICA 多章节任务未完成，异常类型=%s。", type(exc).__name__)
+            try:
+                await self.context.send_message(umo, MessageChain([Comp.Plain("❌ 多章节下载或阅读页生成未完成，已下载文件已保留，请查看后台日志。")]))
+            except Exception:
+                pass
 
     async def _download_all_task(
         self, event: AstrMessageEvent, comic_id: str, title: str, token: str
@@ -784,9 +877,10 @@ class PicaHelper:
         import json
         config_file = self.data_dir.parent / "reader-client.json"
         try:
-            return bool(json.loads(config_file.read_text(encoding="utf-8")).get("enabled"))
+            return bool(json.loads(config_file.read_text(encoding="utf-8-sig")).get("enabled"))
         except (OSError, ValueError):
-            return False
+            # An existing but invalid reader config must not silently send a ZIP.
+            return config_file.exists()
 
     async def _reader_message(self, archive, title):
         """为用户确认的非色情内容建立限时阅读页，不发送原 ZIP。"""
@@ -795,7 +889,7 @@ class PicaHelper:
         from urllib.parse import urlsplit
         import aiohttp
         try:
-            settings = json.loads((self.data_dir.parent / "reader-client.json").read_text(encoding="utf-8"))
+            settings = json.loads((self.data_dir.parent / "reader-client.json").read_text(encoding="utf-8-sig"))
             relative = Path(archive).resolve().relative_to((self.data_dir / PACKS_DIR).resolve())
             async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=120), trust_env=False) as session:
                 async with session.post(
@@ -824,13 +918,16 @@ class PicaHelper:
         ep_label: str,
         ep_dir: Path,
         token: str,
+        unique_output: bool = False,
     ) -> MessageChain:
         """单章节下载结果按打包格式构造消息链（返回 MessageChain 而非异步生成器）"""
         pack_format = str(self.config.get("pack_format", "zip") or "zip").lower()
-        total = len(list(ep_dir.glob("*")))
+        image_paths = sorted(p for p in ep_dir.rglob("*") if p.is_file()
+                             and p.suffix.lower() in {".jpg", ".jpeg", ".png", ".webp", ".gif"})
+        total = len(image_paths)
 
         if pack_format == "images":
-            images = sorted(ep_dir.glob("*"))[:MAX_SEND_IMAGES]
+            images = image_paths[:MAX_SEND_IMAGES]
             comps = [Comp.Image(file=str(p)) for p in images]
             remaining = total - len(images)
             tail = f"\n……等共 {total} 张" if remaining > 0 else ""
@@ -842,6 +939,8 @@ class PicaHelper:
             password=self.config.get("pack_password", "") or "",
         )
         safe_name = self._safe_filename(f"{title}_{ep_label}")
+        if unique_output:
+            safe_name += "_" + uuid.uuid4().hex[:12]
         packs_dir = self.data_dir / PACKS_DIR
         # 打包是 CPU/IO 密集操作，丢到线程池避免阻塞事件循环
         result = await asyncio.to_thread(packer.pack, ep_dir, safe_name, packs_dir)

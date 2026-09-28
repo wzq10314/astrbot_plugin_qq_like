@@ -65,7 +65,7 @@ class MessageFormatter:
             lines.append(f"📝 简介: {desc}{'...' if len(description) > 80 else ''}")
         lines.append("━━━━━━━━━━━━━━━━━━━")
         if with_episodes:
-            lines.append("💡 /pica下载 <ID> <章节号> 单章下载 | /pica下载 <ID> 整本下载")
+            lines.append("💡 /pica下载 <ID> <章节号/1-5/1,3,7> 下载 | /pica下载 <ID> 整本下载")
         else:
             lines.append("💡 回复 /pica详情 <ID> 查看详情")
         return "\n".join(lines)
@@ -151,7 +151,7 @@ class MessageFormatter:
         if len(docs) > 20:
             lines.append(f"... 等 {len(docs)} 话")
         lines.append("━━━━━━━━━━━━━━━━━━━")
-        lines.append(f"💡 回复 /pica下载 {comic_id} <章节号> 下载")
+        lines.append(f"💡 回复 /pica下载 {comic_id} <章节号/1-5/1,3,7> 下载")
         return "\n".join(lines)
 
     @staticmethod
@@ -175,6 +175,7 @@ class MessageFormatter:
             "/pica章节 <ID> - 查看章节列表\n"
             "/pica下载 <ID> - 整本下载(后台，完成后通知)\n"
             "/pica下载 <ID> <章节号> - 下载单章节\n"
+            "/pica下载 <ID> 1-5 或 1,3,7 - 下载指定多章节(后台)\n"
             "/pica排行 [H24|D7|D30] - 排行榜\n"
             "/pica分类 <分区> [页码] - 浏览分区\n"
             "/pica收藏 <ID> - 收藏/取消收藏\n"

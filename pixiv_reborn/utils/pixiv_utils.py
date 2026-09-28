@@ -8,13 +8,14 @@ import uuid
 import zipfile
 import tempfile
 from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
 from typing import Any, Optional
 from astrbot.api import logger
 from astrbot.api.message_components import Image, Plain, Node, Nodes
 from pixivpy3 import AppPixivAPI
 
-from .original_gallery import record_illust
 from .config import PixivConfig
+from .original_gallery import record_illust
 from .tag import filter_illusts_with_reason, FilterConfig
 from .config import smart_clean_temp_dir, clean_temp_dir
 
@@ -57,10 +58,76 @@ def get_proxied_image_url(original_url: str, use_proxy: bool = True) -> str:
         if configured_host:
             proxy_host = configured_host
 
-    if "i.pximg.net" in original_url:
-        return original_url.replace("i.pximg.net", proxy_host)
+    source = urlsplit(original_url)
+    if source.scheme not in ("http", "https") or source.hostname != "i.pximg.net":
+        return original_url
+    target = urlsplit(proxy_host if "://" in proxy_host else "https://" + proxy_host)
+    if target.scheme not in ("http", "https") or not target.netloc:
+        raise ValueError("Pixiv 图片反代地址必须为域名或 HTTP(S) 地址")
+    return urlunsplit((target.scheme, target.netloc,
+                       target.path.rstrip("/") + source.path, source.query, source.fragment))
 
-    return original_url
+
+def resolve_image_url(url: str) -> str:
+    """图片组件、下载请求和可复制链接使用同一个反代策略。"""
+    return get_proxied_image_url(
+        url, use_proxy=bool(getattr(_config, "use_image_proxy", True))
+    )
+
+
+def image_download_text(url: str, label: str = "原图下载") -> str:
+    return f"{label}: {resolve_image_url(url)}" if url else ""
+
+
+def iter_image_sources(illust, detail_message=None, send_all_pages=False):
+    """保留 API 的原图地址；多页逐页取值，兼容仅有封面的对象。"""
+    pages = getattr(illust, "meta_pages", None) or []
+    if pages:
+        for index, page in enumerate(pages if send_all_pages else pages[:1]):
+            detail = f"第 {index + 1}/{len(pages)} 页\n{detail_message or ''}"
+            yield page.image_urls, detail
+    else:
+        from types import SimpleNamespace
+        urls = getattr(illust, "image_urls", None)
+        single = getattr(illust, "meta_single_page", None)
+        yield SimpleNamespace(
+            original=getattr(single, "original_image_url", None) or getattr(urls, "original", None),
+            large=getattr(urls, "large", None), medium=getattr(urls, "medium", None),
+        ), detail_message
+
+
+async def build_image_content(session, url_obj, detail_message=None, show_details=True):
+    """普通消息和转发节点共用：预览画质可降级，下载链接始终优先原图。"""
+    qualities = ["original", "large", "medium"]
+    original = getattr(url_obj, "original", None)
+    best_url = original or next((getattr(url_obj, q, None) for q in qualities
+                                 if getattr(url_obj, q, None)), None)
+    link = image_download_text(best_url, "原图下载" if original else "图片下载（API未提供原图）")
+    quality = getattr(_config, "image_quality", "original")
+    start = qualities.index(quality) if quality in qualities else 0
+    content = []
+    for quality in qualities[start:]:
+        url = getattr(url_obj, quality, None)
+        if not url:
+            continue
+        try:
+            if getattr(_config, "image_send_method", "url") == "url":
+                component = _build_image_from_url(url)
+            else:
+                data = await download_image(session, url)
+                component = await _build_image_from_bytes(data) if data else None
+            if component is not None:
+                content.append(component)
+                break
+        except Exception as exc:
+            logger.warning(f"Pixiv 插件：图片构建失败 ({quality}) - {exc}")
+    if not content:
+        content.append(Plain("图片预览失败，可尝试下方下载链接。"))
+    if show_details and detail_message:
+        content.append(Plain(detail_message))
+    if link:
+        content.append(Plain(link))
+    return content
 
 
 def filter_items(items, tag_label, excluded_tags=None):
@@ -154,8 +221,7 @@ def _build_image_from_url(url: str) -> Optional[Image]:
     if not url:
         return None
     # URL 发送由平台侧拉取图片，不会复用插件下载代理；这里按配置独立控制反代
-    use_image_proxy = bool(getattr(_config, "use_image_proxy", True)) if _config else True
-    actual_url = get_proxied_image_url(url, use_proxy=use_image_proxy)
+    actual_url = resolve_image_url(url)
     if actual_url and (
         actual_url.startswith("http://") or actual_url.startswith("https://")
     ):
@@ -383,11 +449,7 @@ async def download_image(
         default_headers = {"Referer": "https://app-api.pixiv.net/"}
         if headers:
             default_headers.update(headers)
-        # 如果没有配置代理，使用图片反代 URL
-        use_image_proxy = (
-            bool(getattr(_config, "use_image_proxy", True)) if _config else True
-        ) and not bool(_config.proxy if _config else None)
-        actual_url = get_proxied_image_url(url, use_proxy=use_image_proxy)
+        actual_url = resolve_image_url(url)
 
         # 添加超时控制
         timeout = aiohttp.ClientTimeout(total=45, connect=10, sock_read=30)
@@ -395,7 +457,7 @@ async def download_image(
         async with session.get(
             actual_url,
             headers=default_headers,
-            proxy=_config.proxy or None,
+            proxy=getattr(_config, "proxy", None) or None,
             timeout=timeout,
         ) as response:
             if response.status == 200:
@@ -432,6 +494,7 @@ async def process_ugoira_for_content(
     Returns:
         包含gif_data和ugoira_info的字典，失败时返回None
     """
+    source_links = ""
     try:
         # 获取动图元数据
         ugoira_metadata = await asyncio.to_thread(client.ugoira_metadata, illust.id)
@@ -443,11 +506,16 @@ async def process_ugoira_for_content(
             return None
 
         zip_url = metadata.zip_urls.medium
+        source_links = image_download_text(zip_url, "动图帧包下载（API提供）")
+        for urls, _ in iter_image_sources(illust):
+            original = getattr(urls, "original", None)
+            if original:
+                source_links += "\n" + image_download_text(original, "动图原始静帧下载")
 
         # 下载ZIP文件
         zip_data = await download_image(session, zip_url)
         if not zip_data:
-            return None
+            return {"gif_data": None, "ugoira_info": "", "download_links": source_links}
 
         # 生成安全的文件名
         safe_title = generate_safe_filename(illust.title, "ugoira")
@@ -467,18 +535,18 @@ async def process_ugoira_for_content(
                 )
 
                 # 返回包含GIF数据和信息的字典
-                return {"gif_data": gif_data, "ugoira_info": ugoira_info}
+                return {"gif_data": gif_data, "ugoira_info": ugoira_info, "download_links": source_links}
 
             except Exception as e:
                 logger.error(f"Pixiv 插件：处理动图GIF时发生错误 - {e}")
-                return None
+                return {"gif_data": gif_data, "ugoira_info": "", "download_links": source_links}
         else:
-            # GIF转换失败
-            return None
+            # GIF转换失败仍保留源文件链接
+            return {"gif_data": None, "ugoira_info": "", "download_links": source_links}
 
     except Exception as e:
         logger.error(f"Pixiv 插件：处理动图时发生错误 - {e}")
-        return None
+        return {"gif_data": None, "ugoira_info": "", "download_links": source_links} if source_links else None
 
 
 async def authenticate(client: AppPixivAPI) -> bool:
@@ -525,80 +593,10 @@ async def send_pixiv_image(
 
     await smart_clean_temp_dir(_temp_dir, probability=0.1, max_files=20)
 
-    url_sources = []  # 元组列表: (url_object, detail_message_for_page)
-
-    # 辅助类，用于统一单页插画的URL结构
-    class SinglePageUrls:
-        def __init__(self, illust):
-            self.original = getattr(illust.meta_single_page, "original_image_url", None)
-            self.large = getattr(illust.image_urls, "large", None)
-            self.medium = getattr(illust.image_urls, "medium", None)
-
-    if send_all_pages and illust.page_count > 1:
-        for i, page in enumerate(illust.meta_pages):
-            page_detail = f"第 {i + 1}/{illust.page_count} 页\n{detail_message or ''}"
-            # 对于多页作品，page.image_urls 包含 original, large, medium
-            url_sources.append((page.image_urls, page_detail))
-    else:
-        if illust.page_count > 1:
-            # 多页作品的第一页
-            url_obj = illust.meta_pages[0].image_urls
-        else:
-            # 单页作品
-            url_obj = SinglePageUrls(illust)
-        url_sources.append((url_obj, detail_message))
-
-    for url_obj, msg in url_sources:
-        quality_preference = ["original", "large", "medium"]
-        start_index = (
-            quality_preference.index(_config.image_quality)
-            if _config.image_quality in quality_preference
-            else 0
-        )
-        qualities_to_try = quality_preference[start_index:]
-
-        image_sent_for_source = False
-        for quality in qualities_to_try:
-            image_url = getattr(url_obj, quality, None)
-            if not image_url:
-                continue
-
-            logger.info(f"Pixiv 插件：尝试发送图片，质量: {quality}, URL: {image_url}")
-            try:
-                # 优先尝试 URL 直接发送（不需要下载，节省内存和时间）
-                if _config.image_send_method == "url":
-                    img_comp = _build_image_from_url(image_url)
-                    if img_comp:
-                        if show_details and msg:
-                            yield event.chain_result([img_comp, Plain(msg)])
-                        else:
-                            yield event.chain_result([img_comp])
-                        image_sent_for_source = True
-                        break
-
-                # URL 发送不可用或配置为文件发送，则下载后发送
-                async with aiohttp.ClientSession() as session:
-                    img_data = await download_image(session, image_url)
-                    if img_data:
-                        img_comp = await _build_image_from_bytes(img_data)
-                        if show_details and msg:
-                            yield event.chain_result([img_comp, Plain(msg)])
-                        else:
-                            yield event.chain_result([img_comp])
-
-                        image_sent_for_source = True
-                        break  # 此源成功，移动到下一个源
-                    else:
-                        logger.warning(
-                            f"Pixiv 插件：图片下载失败 (质量: {quality})。尝试下一质量..."
-                        )
-            except Exception as e:
-                logger.error(
-                    f"Pixiv 插件：图片下载异常 (质量: {quality}) - {e}。尝试下一质量..."
-                )
-
-        if not image_sent_for_source:
-            yield event.plain_result(f"图片下载失败，仅发送信息：\n{msg or ''}")
+    async with aiohttp.ClientSession() as session:
+        for url_obj, msg in iter_image_sources(illust, detail_message, send_all_pages):
+            content = await build_image_content(session, url_obj, msg, show_details)
+            yield event.chain_result(content)
 
 
 async def send_ugoira(
@@ -630,8 +628,15 @@ async def send_ugoira(
                 # 1. 先尝试使用标准Image组件发送GIF
                 logger.info(f"Pixiv 插件：使用标准Image组件发送GIF - ID: {illust.id}")
 
-                gif_comp = await _build_image_from_bytes(gif_data, ext=".gif")
-                chain_content = [gif_comp]
+                chain_content = []
+                if gif_data:
+                    try:
+                        chain_content.append(await _build_image_from_bytes(gif_data, ext=".gif"))
+                    except Exception as exc:
+                        logger.warning(f"Pixiv 插件：动图预览构建失败 - {exc}")
+                if not chain_content:
+                    chain_content.append(Plain("动图预览失败，可下载帧包。"))
+                chain_content.append(Plain(content["download_links"]))
                 if show_details and ugoira_info:
                     chain_content.append(Plain(ugoira_info))
                 yield event.chain_result(chain_content)
@@ -802,50 +807,29 @@ async def send_forward_message(
     single_batch: bool = False,
 ):
     """
-    直接下载图片并组装 nodes，避免不兼容消息类型。
+    使用统一图片处理函数组装 nodes，遵循 URL/文件/字节发送设置。
     自动检测动图并使用相应的处理方式。
     """
-    batch_size = len(images) if single_batch and images else 10
     nickname = "PixivBot"
-    # OneBot 合并转发需要有效的发送者，不能使用 Node 默认的 QQ 0。
-    sender_uin = str(event.get_self_id())
     # 在处理转发消息之前，先清理可能存在的旧文件
     await clean_temp_dir(_temp_dir, max_files=20)
-    class SinglePageUrls:
-        def __init__(self, illust):
-            self.original = getattr(illust.meta_single_page, "original_image_url", None)
-            self.large = getattr(illust.image_urls, "large", None)
-            self.medium = getattr(illust.image_urls, "medium", None)
-
     image_items = []
     for img in images:
         record_illust(event, img)
-        if hasattr(img, "type") and img.type == "ugoira":
-            detail_message = (
-                build_detail_message_func(img) if _config.show_details else None
-            )
+        detail_message = build_detail_message_func(img) if _config.show_details else None
+        if getattr(img, "type", None) == "ugoira":
             image_items.append(("ugoira", img, None, detail_message))
-            continue
-
-        detail_message = build_detail_message_func(img)
-        if send_all_pages and img.page_count > 1:
-            for page_index, page in enumerate(img.meta_pages):
-                page_detail = (
-                    f"第 {page_index + 1}/{img.page_count} 页\n{detail_message or ''}"
-                )
-                image_items.append(("image", img, page.image_urls, page_detail))
         else:
-            if img.page_count > 1:
-                url_obj = img.meta_pages[0].image_urls
-            else:
-                url_obj = SinglePageUrls(img)
-            image_items.append(("image", img, url_obj, detail_message))
+            for urls, detail in iter_image_sources(img, detail_message, send_all_pages):
+                image_items.append(("image", img, urls, detail))
 
+    # 展开多页后再计算批次，单条合并模式不能按作品数切断页面。
+    batch_size = max(1, len(image_items)) if single_batch else 10
     for i in range(0, len(image_items), batch_size):
         batch_items = image_items[i : i + batch_size]
         nodes_list = []
         if summary_text and i == 0:
-            nodes_list.append(Node(uin=sender_uin, name=nickname, content=[Plain(summary_text)]))
+            nodes_list.append(Node(name=nickname, content=[Plain(summary_text)]))
         async with aiohttp.ClientSession() as session:
             for item_type, img, url_obj, detail_message in batch_items:
                 if item_type == "ugoira":
@@ -857,58 +841,25 @@ async def send_forward_message(
                         # 成功获取到GIF内容
                         gif_data = content["gif_data"]
                         ugoira_info = content["ugoira_info"]
-                        gif_comp = await _build_image_from_bytes(gif_data, ext=".gif")
-                        node_content = [gif_comp]
+                        node_content = []
+                        if gif_data:
+                            try:
+                                node_content.append(await _build_image_from_bytes(gif_data, ext=".gif"))
+                            except Exception as exc:
+                                logger.warning(f"Pixiv 插件：动图预览构建失败 - {exc}")
+                        if not node_content:
+                            node_content.append(Plain("动图预览失败，可下载帧包。"))
+                        node_content.append(Plain(content["download_links"]))
                         if _config.show_details and ugoira_info:
                             node_content.append(Plain(ugoira_info))
                     else:
                         node_content = [Plain("动图处理失败")]
                 else:
-                    # 处理普通图片
-                    # 使用与普通消息相同的质量降级逻辑
-                    quality_preference = ["original", "large", "medium"]
-                    start_index = (
-                        quality_preference.index(_config.image_quality)
-                        if _config.image_quality in quality_preference
-                        else 0
+                    node_content = await build_image_content(
+                        session, url_obj, detail_message, _config.show_details
                     )
-                    qualities_to_try = quality_preference[start_index:]
 
-                    headers = {
-                        "Referer": "https://www.pixiv.net/",
-                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-                    }
-                    node_content = []
-                    image_sent = False
-
-                    # 按质量优先级尝试下载图片，与普通消息保持一致
-                    for quality in qualities_to_try:
-                        image_url = getattr(url_obj, quality, None)
-                        if not image_url:
-                            continue
-
-                        logger.info(
-                            f"Pixiv 插件：转发消息尝试发送图片，质量: {quality}, URL: {image_url}"
-                        )
-                        img_data = await download_image(session, image_url, headers)
-                        if img_data:
-                            # 直接使用字节数据发送图片，避免文件系统路径问题
-                            img_comp = await _build_image_from_bytes(img_data)
-                            node_content.append(img_comp)
-                            image_sent = True
-                            break  # 成功下载，跳出质量循环
-                        else:
-                            logger.warning(
-                                f"Pixiv 插件：转发消息图片下载失败 (质量: {quality})。尝试下一质量..."
-                            )
-
-                    if not image_sent:
-                        node_content.append(Plain("图片下载失败，仅发送信息"))
-
-                    if _config.show_details:
-                        node_content.append(Plain(detail_message))
-
-                node = Node(uin=sender_uin, name=nickname, content=node_content)
+                node = Node(name=nickname, content=node_content)
                 nodes_list.append(node)
         if nodes_list:
             nodes_obj = Nodes(nodes=nodes_list)

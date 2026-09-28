@@ -12,7 +12,7 @@
 | `/pica搜索` | `/picasearch` | keyword=None, page=1 |
 | `/pica详情` | `/picainfo` | comic_id=None |
 | `/pica章节` | `/picaeps` | comic_id=None |
-| `/pica下载` | `/picadl` | comic_id=None, ep=None |
+| `/pica下载` | `/picadl` | comic_id；ep 可填 1、1-5、1,3,7 或 1-3,7，省略为整本 |
 | `/pica排行` | `/picarank` | tt='H24' |
 | `/pica分类` | `/picacomics` | category=None, page=1 |
 | `/pica分区` | `/picacat` | 无 |

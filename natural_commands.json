@@ -1,0 +1,537 @@
+{
+  "pica帮助": {
+    "handler": "picahelp",
+    "parameters": [
+      "args"
+    ],
+    "aliases": [
+      "picahelp"
+    ]
+  },
+  "pica": {
+    "handler": "pica_cmd",
+    "parameters": [],
+    "aliases": []
+  },
+  "pica登录": {
+    "handler": "picalogin",
+    "parameters": [
+      "email",
+      "password"
+    ],
+    "aliases": [
+      "picalogin"
+    ]
+  },
+  "pica退出": {
+    "handler": "picalogout",
+    "parameters": [],
+    "aliases": [
+      "picalogout"
+    ]
+  },
+  "pica状态": {
+    "handler": "picastatus",
+    "parameters": [],
+    "aliases": [
+      "picastatus"
+    ]
+  },
+  "pica搜索": {
+    "handler": "picasearch",
+    "parameters": [
+      "keyword",
+      "page"
+    ],
+    "aliases": [
+      "picasearch"
+    ]
+  },
+  "pica详情": {
+    "handler": "picainfo",
+    "parameters": [
+      "comic_id"
+    ],
+    "aliases": [
+      "picainfo"
+    ]
+  },
+  "pica章节": {
+    "handler": "picaeps",
+    "parameters": [
+      "comic_id"
+    ],
+    "aliases": [
+      "picaeps"
+    ]
+  },
+  "pica下载": {
+    "handler": "picadl",
+    "parameters": [
+      "comic_id",
+      "ep"
+    ],
+    "aliases": [
+      "picadl"
+    ]
+  },
+  "pica排行": {
+    "handler": "picarank",
+    "parameters": [
+      "tt"
+    ],
+    "aliases": [
+      "picarank"
+    ]
+  },
+  "pica分类": {
+    "handler": "picacomics",
+    "parameters": [
+      "category",
+      "page"
+    ],
+    "aliases": [
+      "picacomics"
+    ]
+  },
+  "pica分区": {
+    "handler": "picacat",
+    "parameters": [],
+    "aliases": [
+      "picacat"
+    ]
+  },
+  "pica收藏": {
+    "handler": "picafav",
+    "parameters": [
+      "comic_id"
+    ],
+    "aliases": [
+      "picafav"
+    ]
+  },
+  "pica我的收藏": {
+    "handler": "picamyfav",
+    "parameters": [
+      "page"
+    ],
+    "aliases": [
+      "picamyfav"
+    ]
+  },
+  "pica签到": {
+    "handler": "picapunch",
+    "parameters": [],
+    "aliases": [
+      "picapunch"
+    ]
+  },
+  "pica清理": {
+    "handler": "picaclean",
+    "parameters": [
+      "days"
+    ],
+    "aliases": [
+      "picaclean"
+    ]
+  },
+  "pixiv": {
+    "handler": "cmd_pixiv",
+    "parameters": [
+      "tags"
+    ],
+    "aliases": [
+      "pixiv搜索"
+    ]
+  },
+  "pixiv最新": {
+    "handler": "cmd_pixiv_illust_new",
+    "parameters": [
+      "content_type",
+      "max_illust_id"
+    ],
+    "aliases": [
+      "pixiv_illust_new"
+    ]
+  },
+  "pixiv推荐": {
+    "handler": "cmd_pixiv_recommended",
+    "parameters": [
+      "args"
+    ],
+    "aliases": [
+      "pixiv_recommended"
+    ]
+  },
+  "pixiv组合": {
+    "handler": "cmd_pixiv_and",
+    "parameters": [
+      "tags"
+    ],
+    "aliases": [
+      "pixiv_and"
+    ]
+  },
+  "pixivpid": {
+    "handler": "cmd_pixiv_specific",
+    "parameters": [
+      "illust_id"
+    ],
+    "aliases": [
+      "pixiv_specific"
+    ]
+  },
+  "pixiv排行": {
+    "handler": "cmd_pixiv_ranking",
+    "parameters": [
+      "mode",
+      "date"
+    ],
+    "aliases": [
+      "pixiv_ranking"
+    ]
+  },
+  "pixiv相关": {
+    "handler": "cmd_pixiv_related",
+    "parameters": [
+      "illust_id"
+    ],
+    "aliases": [
+      "pixiv_related"
+    ]
+  },
+  "pixiv深搜": {
+    "handler": "cmd_pixiv_deepsearch",
+    "parameters": [
+      "tags"
+    ],
+    "aliases": [
+      "pixiv_deepsearch"
+    ]
+  },
+  "pixiv评论": {
+    "handler": "cmd_pixiv_illust_comments",
+    "parameters": [
+      "illust_id",
+      "offset"
+    ],
+    "aliases": [
+      "pixiv_illust_comments"
+    ]
+  },
+  "pixiv特辑": {
+    "handler": "cmd_pixiv_showcase_article",
+    "parameters": [
+      "showcase_id"
+    ],
+    "aliases": [
+      "pixiv_showcase_article"
+    ]
+  },
+  "pixiv搜画师": {
+    "handler": "cmd_pixiv_user_search",
+    "parameters": [
+      "username"
+    ],
+    "aliases": [
+      "pixiv_user_search"
+    ]
+  },
+  "pixiv画师": {
+    "handler": "cmd_pixiv_user_detail",
+    "parameters": [
+      "user_id"
+    ],
+    "aliases": [
+      "pixiv_user_detail"
+    ]
+  },
+  "pixiv作品": {
+    "handler": "cmd_pixiv_user_illusts",
+    "parameters": [
+      "user_id"
+    ],
+    "aliases": [
+      "pixiv_user_illusts"
+    ]
+  },
+  "pixiv小说": {
+    "handler": "cmd_pixiv_novel",
+    "parameters": [
+      "tags"
+    ],
+    "aliases": [
+      "pixiv_novel"
+    ]
+  },
+  "pixiv小说推荐": {
+    "handler": "cmd_pixiv_novel_recommended",
+    "parameters": [],
+    "aliases": [
+      "pixiv_novel_recommended"
+    ]
+  },
+  "pixiv最新小说": {
+    "handler": "cmd_pixiv_novel_new",
+    "parameters": [
+      "max_novel_id"
+    ],
+    "aliases": [
+      "pixiv_novel_new"
+    ]
+  },
+  "pixiv小说系列": {
+    "handler": "cmd_pixiv_novel_series",
+    "parameters": [
+      "series_id"
+    ],
+    "aliases": [
+      "pixiv_novel_series"
+    ]
+  },
+  "pixiv小说评论": {
+    "handler": "cmd_pixiv_novel_comments",
+    "parameters": [
+      "novel_id",
+      "offset"
+    ],
+    "aliases": [
+      "pixiv_novel_comments"
+    ]
+  },
+  "pixiv小说下载": {
+    "handler": "cmd_pixiv_novel_download",
+    "parameters": [
+      "novel_id"
+    ],
+    "aliases": [
+      "pixiv_novel_download"
+    ]
+  },
+  "pixiv订阅": {
+    "handler": "cmd_pixiv_subscribe_add",
+    "parameters": [
+      "artist_id"
+    ],
+    "aliases": [
+      "pixiv_subscribe_add"
+    ]
+  },
+  "pixiv退订": {
+    "handler": "cmd_pixiv_subscribe_remove",
+    "parameters": [
+      "artist_id"
+    ],
+    "aliases": [
+      "pixiv_subscribe_remove"
+    ]
+  },
+  "pixiv订阅列表": {
+    "handler": "cmd_pixiv_subscribe_list",
+    "parameters": [
+      "args"
+    ],
+    "aliases": [
+      "pixiv_subscribe_list"
+    ]
+  },
+  "pixiv帮助": {
+    "handler": "cmd_pixiv_help",
+    "parameters": [
+      "args"
+    ],
+    "aliases": [
+      "pixiv_help"
+    ]
+  },
+  "pixiv添加标签": {
+    "handler": "cmd_pixiv_random_add",
+    "parameters": [
+      "tags"
+    ],
+    "aliases": [
+      "pixiv_random_add"
+    ]
+  },
+  "pixiv删除标签": {
+    "handler": "cmd_pixiv_random_del",
+    "parameters": [
+      "index"
+    ],
+    "aliases": [
+      "pixiv_random_del"
+    ]
+  },
+  "pixiv标签列表": {
+    "handler": "cmd_pixiv_random_list",
+    "parameters": [
+      "args"
+    ],
+    "aliases": [
+      "pixiv_random_list"
+    ]
+  },
+  "pixiv暂停推送": {
+    "handler": "cmd_pixiv_random_suspend",
+    "parameters": [],
+    "aliases": [
+      "pixiv_random_suspend"
+    ]
+  },
+  "pixiv恢复推送": {
+    "handler": "cmd_pixiv_random_resume",
+    "parameters": [],
+    "aliases": [
+      "pixiv_random_resume"
+    ]
+  },
+  "pixiv推送状态": {
+    "handler": "cmd_pixiv_random_status",
+    "parameters": [],
+    "aliases": [
+      "pixiv_random_status"
+    ]
+  },
+  "pixiv立即推送": {
+    "handler": "cmd_pixiv_random_force",
+    "parameters": [],
+    "aliases": [
+      "pixiv_random_force"
+    ]
+  },
+  "pixiv添加榜单": {
+    "handler": "cmd_pixiv_random_ranking_add",
+    "parameters": [
+      "mode",
+      "date"
+    ],
+    "aliases": [
+      "pixiv_random_ranking_add"
+    ]
+  },
+  "pixiv删除榜单": {
+    "handler": "cmd_pixiv_random_ranking_del",
+    "parameters": [
+      "index"
+    ],
+    "aliases": [
+      "pixiv_random_ranking_del"
+    ]
+  },
+  "pixiv榜单列表": {
+    "handler": "cmd_pixiv_random_ranking_list",
+    "parameters": [
+      "args"
+    ],
+    "aliases": [
+      "pixiv_random_ranking_list"
+    ]
+  },
+  "pixiv热词": {
+    "handler": "cmd_pixiv_trending_tags",
+    "parameters": [],
+    "aliases": [
+      "pixiv_trending_tags"
+    ]
+  },
+  "pixivAI设置": {
+    "handler": "cmd_pixiv_ai_show_settings",
+    "parameters": [
+      "setting"
+    ],
+    "aliases": [
+      "pixiv_ai_show_settings"
+    ]
+  },
+  "pixiv设置": {
+    "handler": "cmd_pixiv_config",
+    "parameters": [
+      "arg1",
+      "arg2"
+    ],
+    "aliases": [
+      "pixiv_config"
+    ]
+  },
+  "pixiv热门": {
+    "handler": "cmd_pixiv_hot",
+    "parameters": [
+      "tag",
+      "duration",
+      "pages"
+    ],
+    "aliases": [
+      "pixiv_hot"
+    ]
+  },
+  "pixiv赞助作者": {
+    "handler": "cmd_pixiv_fanbox_creator",
+    "parameters": [
+      "creator_input",
+      "limit"
+    ],
+    "aliases": [
+      "pixiv_fanbox_creator"
+    ]
+  },
+  "pixiv赞助帖子": {
+    "handler": "cmd_pixiv_fanbox_post",
+    "parameters": [
+      "args"
+    ],
+    "aliases": [
+      "pixiv_fanbox_post"
+    ]
+  },
+  "pixiv赞助推荐": {
+    "handler": "cmd_pixiv_fanbox_recommended",
+    "parameters": [
+      "args"
+    ],
+    "aliases": [
+      "pixiv_fanbox_recommended"
+    ]
+  },
+  "pixiv赞助搜索": {
+    "handler": "cmd_pixiv_fanbox_artist",
+    "parameters": [
+      "keyword",
+      "limit"
+    ],
+    "aliases": [
+      "pixiv_fanbox_artist"
+    ]
+  },
+  "pixiv赞助下载": {
+    "handler": "cmd_pixiv_fanbox_dl",
+    "parameters": [
+      "args"
+    ],
+    "aliases": [
+      "pixiv_fanbox_dl"
+    ]
+  },
+  "pixiv下载进度": {
+    "handler": "cmd_pixiv_fanbox_dl_status",
+    "parameters": [],
+    "aliases": [
+      "pixiv_fanbox_dl_status"
+    ]
+  },
+  "pixiv停止下载": {
+    "handler": "cmd_pixiv_fanbox_dl_stop",
+    "parameters": [],
+    "aliases": [
+      "pixiv_fanbox_dl_stop"
+    ]
+  },
+  "pixiv已下载": {
+    "handler": "cmd_pixiv_fanbox_dl_view",
+    "parameters": [
+      "args"
+    ],
+    "aliases": [
+      "pixiv_fanbox_dl_view"
+    ]
+  }
+}
