@@ -12,5 +12,14 @@ jobs:
           python-version: '3.12'
       - run: python -m pip install -r requirements-dev.txt
       - run: python -m pytest tests -q
+      - name: JM, PICA and Pixiv regression tests
+        run: |
+          python scripts/test_jm_chapters.py
+          python scripts/test_jm_commands.py
+          python scripts/test_jm_llm.py
+          python scripts/test_jm_rankings.py
+          python scripts/test_jm_search_replies.py
+          python scripts/test_pica_llm_results.py
+          python scripts/test_pixiv_recovery.py
       - run: python -m unittest discover -s reader -p test_reader.py
       - run: python scripts/build_zip.py
