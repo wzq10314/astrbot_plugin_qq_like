@@ -6,7 +6,8 @@ import time
 
 import requests
 from astrbot.api import logger
-from pixivpy3 import ByPassSniApi, AppPixivAPI
+from pixivpy3 import ByPassSniApi
+from .transport import ResilientAppPixivAPI as AppPixivAPI
 
 
 ACCESS_TOKEN_DEFAULT_TTL_SECONDS = 3600

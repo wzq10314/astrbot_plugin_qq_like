@@ -187,6 +187,52 @@
     "hint": "0 表示不按大小清理",
     "default": 2048
   },
+  "jm_enabled": {
+    "type": "bool",
+    "description": "启用禁漫天堂(jm)功能",
+    "hint": "禁漫为成人向漫画平台，默认关闭。开启后 /jm* 命令可用。",
+    "default": false
+  },
+  "jm_proxy": {
+    "type": "string",
+    "description": "JM 下载代理",
+    "hint": "如 http://127.0.0.1:7890 或 127.0.0.1:7890；留空则直连（多数环境需要代理）",
+    "default": ""
+  },
+  "jm_domain_html": {
+    "type": "string",
+    "description": "JM 网页端域名",
+    "hint": "逗号分隔，如 18comic.vip,18comic.org；留空自动获取",
+    "default": ""
+  },
+  "jm_domain_api": {
+    "type": "string",
+    "description": "JM APP端域名（可选）",
+    "hint": "逗号分隔；仅在需要 APP 端客户端时配置",
+    "default": ""
+  },
+  "jm_retry_times": {
+    "type": "int",
+    "description": "JM 请求失败重试次数",
+    "default": 5
+  },
+  "jm_image_threads": {
+    "type": "int",
+    "description": "JM 图片下载并发数",
+    "hint": "数值大下载快但压力大，建议 5-30",
+    "default": 10
+  },
+  "jm_admin_only": {
+    "type": "bool",
+    "description": "JM 仅管理员可用",
+    "default": false
+  },
+  "jm_admin_ids": {
+    "type": "string",
+    "description": "JM 管理员ID列表",
+    "hint": "逗号分隔的QQ号，jm_admin_only 开启时生效",
+    "default": ""
+  },
   "refresh_token": {
     "description": "Pixiv Refresh Token",
     "type": "string",
@@ -477,13 +523,19 @@
     "description": "图片菜单机器人名称",
     "type": "string",
     "default": "",
-    "hint": "Pixiv、PICA 图片菜单左上角显示的机器人名字。留空自动读取当前机器人昵称；最多显示20个字符。保存后重新打开菜单生效，较长名字自动缩小。"
+    "hint": "Pixiv、PICA、JM 图片菜单左上角显示的机器人名字。留空自动读取当前机器人昵称；最多显示20个字符。保存后重新打开菜单生效，较长名字自动缩小。"
+  },
+  "jm_llm_enabled": {
+    "description": "JM自然语言调用",
+    "type": "bool",
+    "default": true,
+    "hint": "需同时启用JM功能。使用AstrBot当前会话的大模型调用搜索、详情、目录、选章下载和图片帮助，沿用原命令权限；自然语言清理缓存仅限AstrBot管理员。"
   },
   "pica_llm_enabled": {
     "description": "PICA自然语言调用",
     "type": "bool",
     "default": true,
-    "hint": "模型可调用PICA查询、下载、收藏等命令，遵守原命令权限。登录仅返回私聊绑定指引，不向模型提供密码。"
+    "hint": "模型可调用PICA查询、下载、收藏等命令，遵守原命令权限。查询结果中的完整漫画ID会回传模型，支持继续说下载第二本，无需复制长ID。登录仅返回私聊绑定指引，不向模型提供密码。"
   },
   "pixiv_commands_llm_enabled": {
     "description": "Pixiv全命令自然语言调用",

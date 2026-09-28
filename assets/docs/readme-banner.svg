@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="336" viewBox="0 0 1200 336" role="img" aria-labelledby="title desc">
+  <title id="title">QQ 点赞与状态助手</title>
+  <desc id="desc">AstrBot 插件，集成 QQ 点赞、服务器状态、Pixiv、PICA、JM 与自然语言调用。</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#172338"/><stop offset="1" stop-color="#293454"/></linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#7de0cf"/><stop offset="1" stop-color="#b9a6ff"/></linearGradient>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse"><path d="M32 0H0V32" fill="none" stroke="#fff" stroke-opacity=".035"/></pattern>
+  </defs>
+  <rect width="1200" height="336" rx="24" fill="url(#bg)"/>
+  <rect width="1200" height="336" rx="24" fill="url(#grid)"/>
+  <circle cx="1122" cy="52" r="202" fill="#a997ff" opacity=".045"/>
+  <circle cx="1170" cy="324" r="197" fill="#71d8c7" opacity=".035"/>
+  <g font-family="Segoe UI,Microsoft YaHei,Noto Sans SC,sans-serif">
+    <rect x="54" y="44" width="4" height="19" rx="2" fill="#7de0cf"/>
+    <text x="71" y="59" fill="#a8bed5" font-size="15" letter-spacing="3">ASTRBOT · PLUGIN COLLECTION</text>
+    <text x="52" y="135" fill="#f4f7ff" font-size="47" font-weight="700">QQ 点赞与状态助手</text>
+    <text x="55" y="179" fill="#b9c7d9" font-size="20">点赞 · 状态图 · 插画与漫画 · 自然语言调用</text>
+    <path d="M55 211H596" stroke="url(#accent)" stroke-opacity=".45"/>
+    <g font-size="14" fill="#d8e5f4">
+      <rect x="55" y="236" width="92" height="32" rx="16" fill="#83dfcc" fill-opacity=".14"/>
+      <text x="101" y="257" text-anchor="middle" fill="#a2eddb">v1.6.2</text>
+      <rect x="157" y="236" width="120" height="32" rx="16" fill="#fff" fill-opacity=".06"/>
+      <text x="217" y="257" text-anchor="middle">OneBot v11</text>
+      <rect x="287" y="236" width="125" height="32" rx="16" fill="#fff" fill-opacity=".06"/>
+      <text x="349" y="257" text-anchor="middle">LLM Tools</text>
+      <rect x="422" y="236" width="108" height="32" rx="16" fill="#fff" fill-opacity=".06"/>
+      <text x="476" y="257" text-anchor="middle">AGPL-3.0</text>
+    </g>
+    <g transform="translate(773 56)">
+      <rect width="362" height="214" rx="18" fill="#0b1529" fill-opacity=".38" stroke="#8396b4" stroke-opacity=".2"/>
+      <circle cx="22" cy="22" r="4" fill="#ffb0af"/><circle cx="37" cy="22" r="4" fill="#edcf8e"/><circle cx="52" cy="22" r="4" fill="#8addc5"/>
+      <text x="340" y="27" text-anchor="end" fill="#8297b3" font-size="12" letter-spacing="1.5">CHAT + TOOLS</text>
+      <rect x="23" y="49" width="258" height="48" rx="12" fill="#63799f" fill-opacity=".19"/>
+      <text x="40" y="80" fill="#e8effa" font-size="18">帮我看看服务器状态</text>
+      <rect x="81" y="112" width="258" height="75" rx="12" fill="#78d8c5" fill-opacity=".1" stroke="#78d8c5" stroke-opacity=".2"/>
+      <path d="M102 140l5 5 10-12" fill="none" stroke="#8be5cc" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <text x="128" y="144" fill="#a8eddb" font-size="17">用一句话，调用所需功能</text>
+      <path d="M103 163H208M219 163H302" stroke="#b2c9db" stroke-opacity=".28" stroke-width="4" stroke-linecap="round"/>
+    </g>
+  </g>
+</svg>

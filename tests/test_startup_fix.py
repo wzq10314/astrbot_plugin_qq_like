@@ -76,15 +76,12 @@ class LoginSafetyTests(unittest.IsolatedAsyncioTestCase):
 class StartupTests(unittest.TestCase):
     def test_constructor_never_probes_network(self):
         api=types.ModuleType('astrbot.api');api.logger=logging.getLogger('test')
-        pixiv=types.ModuleType('pixivpy3')
-        pixiv.AppPixivAPI=Mock();pixiv.ByPassSniApi=Mock()
-        spec=importlib.util.spec_from_file_location('startup_client',ROOT/'pixiv_reborn/core/client.py')
-        module=importlib.util.module_from_spec(spec)
-        with patch.dict(sys.modules,{'astrbot.api':api,'pixivpy3':pixiv,'requests':Mock()}):
-            spec.loader.exec_module(module)
+        sys.path.insert(0, str(ROOT))
+        with patch.dict(sys.modules,{'astrbot.api':api}):
+            module=importlib.import_module('pixiv_reborn.core.client')
             config=types.SimpleNamespace(proxy='',api_proxy_host='',get_requests_kwargs=lambda:{})
-            with patch.object(module.socket,'gethostbyname',side_effect=AssertionError('blocking DNS')), patch.object(module.requests,'head',side_effect=AssertionError('blocking HTTP')), patch.object(module.requests,'get',side_effect=AssertionError('blocking HTTP')):
+            with patch.object(module,'AppPixivAPI') as factory, patch.object(module.socket,'gethostbyname',side_effect=AssertionError('blocking DNS')), patch.object(module.requests,'head',side_effect=AssertionError('blocking HTTP')), patch.object(module.requests,'get',side_effect=AssertionError('blocking HTTP')):
                 module.PixivClientWrapper(config)
-            pixiv.AppPixivAPI.assert_called_once()
+            factory.assert_called_once()
 
 if __name__=='__main__':unittest.main()

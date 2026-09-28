@@ -8,7 +8,14 @@ PyPDF2>=3.0.1
 pixivpy3>=3.0.0
 curl_cffi>=0.7.0
 peewee>=3.14.0
-apscheduler>=3.9.0
+apscheduler>=3.9.0,<4
 fpdf2>=2.7.0
 aiofiles>=22.1.0
 opencc-python-reimplemented==0.1.7
+# JM option dependency auto-install support; PDF export stays enabled.
+jmcomic>=2.7.7,<3
+img2pdf>=0.5.1,<0.7
+# Direct imports must not depend on another package installing these by chance.
+PyYAML>=6.0,<7
+requests>=2.31,<3
+pydantic>=2,<3

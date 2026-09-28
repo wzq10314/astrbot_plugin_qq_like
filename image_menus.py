@@ -13,7 +13,7 @@ from astrbot.api.message_components import Image
 
 ASSETS = Path(__file__).resolve().parent / 'assets' / 'menus'
 FONT = ASSETS.parent / 'fonts' / 'LXGWWenKai-Regular.ttf'
-MENU_FILES = {'pixiv': 'pixiv-help-v3.png', 'pica': 'pica-help-v1.png'}
+MENU_FILES = {'pixiv': 'pixiv-help-v3.png', 'pica': 'pica-help-v1.png', 'jm': 'jm-help-v2.png'}
 _names = OrderedDict()
 _images = OrderedDict()
 _render_lock = asyncio.Lock()
@@ -121,8 +121,14 @@ async def send_image_menu(event, kind, config=None):
         if name == '落落':
             component = Image.fromFileSystem(str(path))
         else:
-            rendered = await asyncio.wait_for(render_menu(kind, name, config), timeout=65)
-            component = Image.fromBase64(base64.b64encode(rendered).decode('ascii'))
+            try:
+                rendered = await asyncio.wait_for(render_menu(kind, name, config), timeout=65)
+                component = Image.fromBase64(base64.b64encode(rendered).decode('ascii'))
+            except Exception:
+                if kind != 'jm':
+                    raise
+                logger.warning('JM 菜单品牌渲染不可用，发送内置图片帮助。')
+                component = Image.fromFileSystem(str(path))
         await asyncio.wait_for(event.send(event.chain_result([component])), timeout=60)
         return True
     except Exception as exc:

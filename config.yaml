@@ -1,4 +1,4 @@
-# Example defaults only; configure credentials in AstrBot WebUI.
+# 示例配置，以 AstrBot 后台为准
 {
   "llm_enabled": true,
   "enabled": true,
@@ -79,5 +79,14 @@
   "random_sent_illust_retention_days": 7,
   "menu_bot_name": "",
   "pica_llm_enabled": true,
-  "pixiv_commands_llm_enabled": true
+  "pixiv_commands_llm_enabled": true,
+  "jm_enabled": false,
+  "jm_llm_enabled": true,
+  "jm_proxy": "",
+  "jm_domain_html": "",
+  "jm_domain_api": "",
+  "jm_retry_times": 5,
+  "jm_image_threads": 10,
+  "jm_admin_only": false,
+  "jm_admin_ids": ""
 }

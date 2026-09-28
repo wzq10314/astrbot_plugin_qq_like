@@ -1,4 +1,49 @@
 {
+  "jm帮助": {
+    "handler": "jmhelp",
+    "parameters": ["args"],
+    "aliases": ["jmhelp"]
+  },
+  "jm": {
+    "handler": "jm_cmd",
+    "parameters": [],
+    "aliases": ["jmhelp0"]
+  },
+  "jm搜索": {
+    "handler": "jmsearch",
+    "parameters": ["keyword", "page"],
+    "aliases": ["jmsearch"]
+  },
+  "jm月排行": {
+    "handler": "jmmonth",
+    "parameters": ["page"],
+    "aliases": ["jm月榜", "jmmonth"]
+  },
+  "jm总排行": {
+    "handler": "jmall",
+    "parameters": ["page"],
+    "aliases": ["jm总榜", "jmall"]
+  },
+  "jm详情": {
+    "handler": "jminfo",
+    "parameters": ["comic_id"],
+    "aliases": ["jminfo"]
+  },
+  "jm章节": {
+    "handler": "jmchapters",
+    "parameters": ["comic_id"],
+    "aliases": ["jmchapters"]
+  },
+  "jm下载": {
+    "handler": "jmdl",
+    "parameters": ["comic_id", "ep"],
+    "aliases": ["jmdl"]
+  },
+  "jm清理": {
+    "handler": "jmclean",
+    "parameters": ["days"],
+    "aliases": ["jmclean"]
+  },
   "pica帮助": {
     "handler": "picahelp",
     "parameters": [
