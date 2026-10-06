@@ -16,3 +16,14 @@ reader/state/
 reader-client.json
 _test_data/
 *.before-*
+
+# Private account data and generated download/reader artifacts
+tokens/
+token.json
+cache/
+state/
+requests/
+packs/
+downloads/
+*.sqlite*
+downloaded.json

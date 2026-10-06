@@ -66,10 +66,7 @@ _mock_comp.Image = _StubComp.Image
 _mock_comp.Video = type("Video", (), {"__init__": lambda self, **kw: None})
 _mock_comp.Record = type("Record", (), {"__init__": lambda self, **kw: None})
 
-_pkg = types.ModuleType("dedup_plugin_test")
-_pkg.__path__ = [str(_ROOT)]
-sys.modules["dedup_plugin_test"] = _pkg
-from dedup_plugin_test.pica.plugin import PicaHelper as PicaPlugin
+from astrbot_plugin_qq_like.pica.plugin import PicaHelper as PicaPlugin
 
 # 会话标识占位符：UMO 在本测试中仅作字符串透传，不参与任何校验
 UMO = "default:private:10000"

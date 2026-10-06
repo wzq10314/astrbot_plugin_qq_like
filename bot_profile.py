@@ -5,6 +5,7 @@ import io
 import re
 import time
 from collections import OrderedDict
+from .platform_support import is_official, official_bot_name
 
 
 def image_data(data):
@@ -33,6 +34,9 @@ class BotProfiles:
     def __init__(self): self.cache=OrderedDict()
 
     async def get(self,event,fallback='AstrBot'):
+        if is_official(event):
+            # An AppID is not a QQ number: never request qlogo with this ID.
+            return {'bot_name': official_bot_name(event, fallback), 'bot_avatar': ''}
         qq=str(event.get_self_id())
         default={'bot_name':str(fallback)[:40],'bot_avatar':''}
         if not re.fullmatch(r'[0-9]{5,12}',qq): return default

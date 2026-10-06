@@ -13,6 +13,9 @@ from types import SimpleNamespace
 
 
 ROOT = Path(__file__).resolve().parents[1]
+platform_globals = {}
+platform_path = ROOT / "platform_support.py"
+exec(compile(platform_path.read_text(encoding="utf-8-sig"), str(platform_path), "exec"), platform_globals)
 
 
 class Plain:
@@ -97,14 +100,17 @@ def load_main_search():
     path = ROOT / "main.py"
     source = next(node for node in ast.parse(path.read_text(encoding="utf-8-sig")).body
                   if isinstance(node, ast.ClassDef) and node.name == "QQLike")
-    method = next(node for node in source.body if isinstance(node, ast.AsyncFunctionDef)
-                  and node.name == "jmsearch")
-    method.decorator_list = []
+    names = {"jmsearch", "_jm_search_content_rejection"}
+    methods = [node for node in source.body if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+               and node.name in names]
+    assert {node.name for node in methods} == names
+    for method in methods:
+        method.decorator_list = []
     module = ast.Module(body=[
         ast.ImportFrom(module="__future__", names=[ast.alias(name="annotations")], level=0),
-        ast.ClassDef(name="QQLike", bases=[], keywords=[], body=[method], decorator_list=[]),
+        ast.ClassDef(name="QQLike", bases=[], keywords=[], body=methods, decorator_list=[]),
     ], type_ignores=[])
-    namespace = {"asyncio": asyncio, "aclosing": aclosing}
+    namespace = {"asyncio": asyncio, "aclosing": aclosing, "is_official": platform_globals["is_official"]}
     exec(compile(ast.fix_missing_locations(module), str(path), "exec"), namespace)
     return namespace["QQLike"]
 

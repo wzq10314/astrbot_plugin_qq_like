@@ -1,9 +1,11 @@
 name: astrbot_plugin_qq_like
 display_name: QQ 点赞与状态助手
-desc: QQ分批点赞、服务器状态渲染图、哔咔漫画(pica)、PIXIV插画(pixiv_reborn)、JM漫画与排行榜，支持LLM调用
-version: v1.6.2
+desc: QQ分批点赞、服务器状态渲染图、哔咔漫画(pica)、PIXIV插画(pixiv_reborn)、禁漫天堂(jm)，支持LLM调用
+version: v1.6.3
 author: wzq10314
 support_platforms:
   - aiocqhttp
+  - qq_official
+  - qq_official_webhook
 astrbot_version: '>=4.28.1,<5'
 repo: https://github.com/wzq10314/astrbot_plugin_qq_like

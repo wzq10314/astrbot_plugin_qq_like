@@ -210,7 +210,8 @@ class PicaHelper:
 
     def _uid(self, event: AstrMessageEvent) -> str:
         """当前用户 ID"""
-        return str(event.get_sender_id())
+        from ..platform_support import account_key
+        return account_key(event)
 
     def _guard(self, event: AstrMessageEvent) -> str | None:
         """权限统一入口：无权限时返回提示文本，有权限返回 None"""
@@ -435,17 +436,61 @@ class PicaHelper:
             comic = await self.client.comic_info(comic_id, token)
             title = comic.get("title", comic_id) if comic else comic_id
 
-            if selected and len(selected) > 1:
-                key = (self._uid(event), comic_id)
-                if key in self._all_download_tasks and not self._all_download_tasks[key].done():
-                    yield event.plain_result("⏳ 这本漫画已有章节下载任务，请等它完成后再试～")
-                    return
+            # A valid comic does not imply every requested episode exists. Do
+            # this before announcing or scheduling either download mode.
+            directory_command = f"/pica章节 {comic_id}"
+            try:
                 eps = await self.client.episodes_all(comic_id, token)
-                available = {int(e["order"]) for e in eps if str(e.get("order", "")).isdigit()}
+            except PicaError as exc:
+                yield event.plain_result(
+                    f"❌ 章节目录获取失败，暂时无法确认可下载章节：{exc}\n"
+                    f"本次未开始下载。请稍后用 {directory_command} 重试。"
+                )
+                return
+            except Exception as exc:
+                logger.warning("PICA 下载前章节目录获取异常，类型=%s。", type(exc).__name__)
+                yield event.plain_result(
+                    f"❌ 章节目录获取异常，暂时无法确认可下载章节，本次未开始下载。\n"
+                    f"请稍后用 {directory_command} 重试。"
+                )
+                return
+            available = set()
+            valid_directory = isinstance(eps, list)
+            for episode in eps if valid_directory else ():
+                order = episode.get("order") if isinstance(episode, dict) else None
+                if type(order) is int and order > 0:
+                    available.add(order)
+                elif isinstance(order, str) and order.isascii() and order.isdecimal() and len(order) <= 10 and int(order) > 0:
+                    available.add(int(order))
+                else:
+                    valid_directory = False
+                    break
+            if not valid_directory:
+                yield event.plain_result(
+                    f"❌ 章节目录数据异常，暂时无法确认可下载章节，本次未开始下载。\n"
+                    f"请稍后用 {directory_command} 重试。"
+                )
+                return
+            if not available:
+                yield event.plain_result(
+                    f"❌ 当前目录没有可下载章节，本次未开始下载。\n请用 {directory_command} 查看最新目录。"
+                )
+                return
+            if selected:
                 missing = sorted(set(selected) - available)
                 if missing:
-                    yield event.plain_result("❌ 没有这些章节：" + format_chapters(missing) + "。请先用 /pica章节 查看，本次未开始下载。")
+                    listed = format_chapters(sorted(available))
+                    if len(listed) > 400:
+                        listed = listed[:400] + "…（完整列表请查看目录）"
+                    yield event.plain_result(
+                        f"❌ 当前目录没有第{format_chapters(missing)}话，本次未开始下载。\n"
+                        f"现有章节：{listed}。\n查看目录：{directory_command}\n"
+                        f"可选择已有章节，例如：/pica下载 {comic_id} {min(available)}"
+                    )
                     return
+
+            if selected and len(selected) > 1:
+                key = (self._uid(event), comic_id)
                 # Validation awaited the API; another request may have started meanwhile.
                 if key in self._all_download_tasks and not self._all_download_tasks[key].done():
                     yield event.plain_result("⏳ 这本漫画已有章节下载任务，请等它完成后再试～")

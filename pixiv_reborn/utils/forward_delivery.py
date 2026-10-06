@@ -133,13 +133,16 @@ class ForwardDelivery:
                 "已停止后续批次；请确认已添加机器人好友并允许私聊。原图网页仍会按原设置生成。")
 
 
-def failure_details(exc, request_id):
+def failure_details(exc, request_id, event=None):
     # Do not echo response bodies, URLs, image payloads or account information.
     code = getattr(exc, "retcode", None)
     response = getattr(exc, "result", None)
     if code is None and isinstance(response, dict):
         code = response.get("retcode")
     safe_code = str(code) if str(code).lstrip("-").isdigit() else "未知"
+    if event is not None and event.get_platform_name() in {'qq_official', 'qq_official_webhook'}:
+        return (f'Pixiv 图文消息未确认送达（编号 {request_id}）。已停止后续发送；'
+                '请查看 QQ 官方接口诊断。网页生成和消息送达是独立结果，请勿重复提交。')
     if isinstance(exc, (asyncio.TimeoutError, TimeoutError)):
         return f"Pixiv 聊天记录发送超时，无法确认是否送达（编号 {request_id}）。已停止后续发送，请先检查聊天记录，避免重复提交。"
     return (f"Pixiv 聊天记录发送失败（错误码 {safe_code}，编号 {request_id}）。"
@@ -165,6 +168,8 @@ async def prepared_results(stream, budget=45):
 def with_forward_delivery(func):
     @wraps(func)
     async def wrapped(self, event, *args, **kwargs):
+        if event.get_platform_name() in {'qq_official', 'qq_official_webhook'}:
+            event.set_extra('qq_official_card', {'family': 'pixiv'})
         # Nested helper calls share one delivery boundary; never send twice.
         if getattr(event, "_pixiv_forward_delivery", False):
             async for result in func(self, event, *args, **kwargs):
@@ -199,7 +204,7 @@ def with_forward_delivery(func):
                     except Exception as exc:
                         logger.warning("Pixiv 转发 %s：第 %s 批失败，异常类型 %s；停止发送。",
                                        request_id, batches + 1, type(exc).__name__)
-                        message = delivery.failure_notice(request_id) if isinstance(exc, PrivateDeliveryError) else failure_details(exc, request_id)
+                        message = delivery.failure_notice(request_id) if isinstance(exc, PrivateDeliveryError) else failure_details(exc, request_id, event)
                         if isinstance(exc, PrivateDeliveryError):
                             await notify_sender(event, message)
                         else:

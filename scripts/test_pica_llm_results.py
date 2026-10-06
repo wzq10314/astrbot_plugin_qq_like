@@ -50,6 +50,7 @@ dispatch = load_file(PACKAGE + ".natural_commands", ROOT / "natural_commands.py"
 constants = load_file(PACKAGE + ".pica.core.constants", ROOT / "pica" / "core" / "constants.py")
 formatter = load_file(PACKAGE + ".pica.core.formatter", ROOT / "pica" / "core" / "formatter.py")
 search_variants = load_file(PACKAGE + ".search_variants", ROOT / "search_variants.py")
+platform = load_file(PACKAGE + ".platform_support", ROOT / "platform_support.py")
 
 
 def extract_class(path, name, methods, namespace):
@@ -89,6 +90,7 @@ Helper = extract_class(ROOT / "pica" / "plugin.py", "PicaHelper", {
     "info_command", "episodes_command", "rank_command", "comics_command",
     "my_favourite_command", "download_command", "status_command",
 }, {
+    "__name__": PACKAGE + ".pica.plugin", "__package__": PACKAGE + ".pica",
     "asyncio": asyncio, "MessageFormatter": formatter.MessageFormatter,
     "CATEGORIES": constants.CATEGORIES, "PicaError": PicaError, "logger": api.logger,
     "search_with_variants": search_variants.search_with_variants,

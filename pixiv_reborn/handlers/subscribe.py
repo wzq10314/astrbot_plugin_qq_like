@@ -1,5 +1,6 @@
 from astrbot.api.event import AstrMessageEvent
 from astrbot.api import logger
+from ...platform_support import session_key
 from ..utils.database import (
     add_subscription,
     remove_subscription,
@@ -30,9 +31,7 @@ class SubscribeHandler:
             )
             return
 
-        platform_name = event.platform_meta.id
-        message_type = event.get_message_type().value
-        session_id = f"{platform_name}:{message_type}:{event.get_group_id() or event.get_sender_id()}"
+        session_id = str(event.unified_msg_origin)
 
         sub_type = "artist"
         target_name = artist_id
@@ -72,7 +71,7 @@ class SubscribeHandler:
             )
 
         success, message = add_subscription(
-            event.get_group_id() or event.get_sender_id(),
+            session_key(event),
             session_id,
             sub_type,
             artist_id,
@@ -95,7 +94,7 @@ class SubscribeHandler:
             )
             return
 
-        chat_id = event.get_group_id() or event.get_sender_id()
+        chat_id = session_key(event)
         sub_type = "artist"
 
         success, message = remove_subscription(chat_id, sub_type, artist_id)
@@ -107,7 +106,7 @@ class SubscribeHandler:
             yield event.plain_result("订阅功能未启用。")
             return
 
-        chat_id = event.get_group_id() or event.get_sender_id()
+        chat_id = session_key(event)
         subs = list_subscriptions(chat_id)
 
         if not subs:

@@ -6,7 +6,7 @@ _ROOT = Path(__file__).resolve().parents[2]
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-from pica.core.formatter import MessageFormatter
+from astrbot_plugin_qq_like.pica.core.formatter import MessageFormatter
 
 
 def test_format_search_results_empty():
@@ -39,15 +39,15 @@ def test_format_search_results_pagination_hint():
 
 def test_help_text():
     text = MessageFormatter.help_text()
-    assert "/pica登录" in text
-    assert "/pica下载" in text
+    assert "/pica登录 <邮箱> <密码>" in text
+    assert "/pica下载 <ID>" in text
     assert "/pica清理" in text
 
 
 def test_format_categories():
     out = MessageFormatter.format_categories(["A", "B"])
     assert "A" in out and "B" in out
-    assert "/pica分类" in out
+    assert "/pica分类 <分区名>" in out
 
 
 def test_format_comic():
@@ -55,4 +55,5 @@ def test_format_comic():
              "totalLikes": 3, "commentsCount": 1}
     out = MessageFormatter.format_comic(comic, with_episodes=True)
     assert "T" in out and "c1" in out and "A" in out
-    assert "/pica下载 <ID>" in out
+    assert "/pica下载 <ID> <章节号/1-5/1,3,7>" in out
+    assert "/pica下载 <ID> 整本下载" in out

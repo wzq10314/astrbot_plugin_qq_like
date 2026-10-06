@@ -244,7 +244,7 @@ class PixivIllustSearchTool(FunctionTool[AstrAgentContext]):
                         notice = delivery.failure_notice(request_id)
                         await notify_sender(event, notice)
                         return notice
-                    return failure_details(e, request_id)
+                    return failure_details(e, request_id, event)
 
             if sent_batches > 0:
                 if delivery.private_batches:

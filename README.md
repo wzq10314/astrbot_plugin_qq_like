@@ -32,13 +32,15 @@
 | 📖 **JM** | 搜索、详情、章节目录、月榜、总榜与下载 | 引用搜索回复，榜单每 50 条转发，群发送失败转私聊 |
 | 💬 **自然语言** | 让模型调用插件已有功能 | JM / PICA 返回真实漫画 ID，可继续说“下载第二本” |
 
-**当前版本：v1.6.2** · 插件名：`astrbot_plugin_qq_like` · 作者：`wzq10314`
+**当前版本：v1.6.3** · 插件名：`astrbot_plugin_qq_like` · 作者：`wzq10314`
 
 [GitHub 仓库](https://github.com/wzq10314/astrbot_plugin_qq_like) · [发布版本](https://github.com/wzq10314/astrbot_plugin_qq_like/releases) · [问题反馈](https://github.com/wzq10314/astrbot_plugin_qq_like/issues)
 
 **这是 AstrBot 整合适配版，不是各上游作者的官方发布。感谢原作者开放源码。**
 
-> **环境说明**：插件声明支持 AstrBot `>=4.28.1,<5`，使用 `aiocqhttp / OneBot v11` 适配器；已在 **AstrBot 4.28.2 + Python 3.12 + NapCat** 环境验证。其他版本和协议端以实际兼容情况为准。
+> **环境说明**：插件声明支持 AstrBot `>=4.28.1,<5`，支持 `aiocqhttp / OneBot v11`，并按平台能力适配 `qq_official` 与 `qq_official_webhook`。已有部署在 **AstrBot 4.28.2 + Python 3.12 + NapCat / QQ 官方机器人** 环境使用；Webhook 及其他版本请按实际开放权限验证。
+
+QQ 官方机器人可使用状态查询、Pixiv / PICA / JM 查询、菜单和自然语言工具；图文卡片与点击按钮需安装配套的 [QQ 官方卡片插件](https://github.com/wzq10314/astrbot_plugin_official_cards)。官方 OpenID 与普通 QQ 号分开绑定账号，管理员名单也需填写官方平台的用户标识。**名片点赞仍仅支持 NapCat**；官方平台没有合并聊天记录和群文件能力时，会使用普通回复或已配置的阅读网页链接。接口权限、内容审核、主动发送限制与网络配置仍按 QQ 官方平台实际能力处理。
 
 PICA、JM 为成人向平台，功能默认关闭，按需启用。Pixiv 的 `r18_mode` 默认为“过滤 R18”，`ai_filter_mode` 默认为“显示 AI 作品”；具体工具的行为见下文。
 
@@ -84,7 +86,7 @@ https://github.com/wzq10314/astrbot_plugin_qq_like
 
 | 想使用的功能 | 最少需要配置 |
 | :--- | :--- |
-| QQ 点赞 | `enabled: true`，默认开启 |
+| QQ 点赞 | `enabled: true`，默认开启；仅 OneBot / NapCat |
 | 服务器状态 | `status_enabled: true`，默认开启 |
 | Pixiv | 填写有效的 `refresh_token`；按网络情况配置代理 |
 | PICA | 设置 `pica_enabled: true`，然后在私聊中绑定账号，或使用管理员配置的默认账号 |
@@ -487,7 +489,8 @@ python -m pip install -r requirements.txt
 
 | 版本 | 主要变化 |
 | :--- | :--- |
-| **v1.6.2** · 2026-09-29 | 整合 JM 功能、依赖补齐、选章下载、月榜与总榜、自然语言真实 ID 回传、群榜单私聊回退；重整发布文档 |
+| **v1.6.3** · 2026-10-06 | 同步当前部署的 QQ 官方身份、菜单 WebP、平台发送与 PICA 错误诊断修复；保留中文命令、阅读服务和原有功能 |
+| v1.6.2 · 2026-09-29 | 整合 JM 功能、依赖补齐、选章下载、月榜与总榜、自然语言真实 ID 回传、群榜单私聊回退；重整发布文档 |
 | v1.6.1 · 2026-09-28 | PICA / Pixiv 自然语言、多章下载、阅读链接、群转发私聊回退与自定义菜单 |
 | v1.5.0 · 2026-09-28 | 首次公开发布，中文命令、简繁搜索兼容及可选阅读服务 |
 
@@ -524,6 +527,7 @@ python -m pip install -r requirements.txt
 | [yeyang52/yenai-plugin](https://github.com/yeyang52/yenai-plugin) | 点赞与状态图参考 |
 | [huashuiyue07/astrbot_plugin_pica](https://github.com/huashuiyue07/astrbot_plugin_pica) | PICA 功能，整合基础版本 v1.4.1 |
 | [vmoranv-reborn/astrbot_plugin_pixiv_reborn](https://github.com/vmoranv-reborn/astrbot_plugin_pixiv_reborn) | Pixiv 功能，整合基础版本 v1.7.5 |
+| [X-Zero-L/jmhelper](https://github.com/X-Zero-L/jmhelper) / [jmcomic](https://github.com/hect0x7/JMComic-Crawler-Python) | JM 操作流程参考与下载依赖，来源说明见 NOTICE |
 | [atelier-anchor/smiley-sans](https://github.com/atelier-anchor/smiley-sans) | 得意黑字体 |
 | [opencc-python-reimplemented](https://pypi.org/project/opencc-python-reimplemented/) | 本地简繁转换，通过依赖安装 |
 | [lxgw/LxgwWenKai](https://github.com/lxgw/LxgwWenKai) | 霞鹜文楷，图片菜单标题字体 |
@@ -533,5 +537,5 @@ python -m pip install -r requirements.txt
 随附字体许可分别保留于 [Source 字体许可](assets/OFL.txt)、[得意黑许可](licenses/smiley_sans-LICENSE.txt)和[霞鹜文楷许可](assets/fonts/LXGWWenKai-OFL.txt)。
 
 <p align="center">
-  <sub>astrbot_plugin_qq_like · v1.6.2 · AGPL-3.0</sub>
+  <sub>astrbot_plugin_qq_like · v1.6.3 · AGPL-3.0</sub>
 </p>

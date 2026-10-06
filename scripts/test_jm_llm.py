@@ -95,6 +95,7 @@ api.message_components = Comp
 chapters = load_file(PACKAGE + ".pica.chapters", ROOT / "pica" / "chapters.py")
 dispatch = load_file(PACKAGE + ".natural_commands", ROOT / "natural_commands.py")
 formatter = load_file(PACKAGE + ".formatter", ROOT / "jm" / "core" / "formatter.py")
+platform = load_file(PACKAGE + ".platform_support", ROOT / "platform_support.py")
 
 
 def extract_class(path, name, methods, namespace):
@@ -130,8 +131,10 @@ Main = extract_class(ROOT / "main.py", "QQLike", {
     "jm_commands_tool", "jmhelp", "jm_cmd", "jmsearch", "jmmonth", "jmall", "jminfo", "jmchapters", "jmdl", "jmclean",
     "_send_jm_ranking_command",
     "_send_jm_private_ranking", "_jm_ranking_notice",
+    "_jm_search_content_rejection",
 }, {"dispatch_command": dispatch.dispatch_command, "asyncio": asyncio, "aclosing": aclosing,
-    "Comp": Comp, "Node": Node, "Nodes": Nodes, "re": re, "logger": api.logger})
+    "Comp": Comp, "Node": Node, "Nodes": Nodes, "re": re, "logger": api.logger,
+    "is_official": platform.is_official})
 
 
 class Event:

@@ -4,6 +4,7 @@ import re
 import time
 
 from astrbot.api.event import AstrMessageEvent
+from .platform_support import SUPPORTED_PLATFORMS, card_hint, is_official, session_key
 
 STATUS_RENDER_TIMEOUT = 45
 
@@ -45,6 +46,8 @@ class ExtraFeatures:
         return merged
 
     def session_of(self, event):
+        if is_official(event):
+            return session_key(event)
         try:
             group = event.get_group_id()
         except Exception:
@@ -96,8 +99,9 @@ class ExtraFeatures:
         return await self.status_run(event, mode)
 
     async def status_run(self, event, mode):
-        if event.get_platform_name() != 'aiocqhttp':
-            return '未执行：仅支持OneBot11/NapCat。'
+        if event.get_platform_name() not in SUPPORTED_PLATFORMS:
+            return '未执行：当前消息平台暂未适配状态图。'
+        card_hint(event, 'status', '服务器状态')
         if not self.config.get('status_enabled', True):
             return '未执行：状态图功能已关闭。'
         if mode not in ('normal', 'pro', 'debug', 'prodebug'):
@@ -114,6 +118,7 @@ class ExtraFeatures:
             if not hasattr(self, 'bot_profiles'):
                 self.bot_profiles = BotProfiles()
             report.update(await self.bot_profiles.get(event, self.config.get('status_bot_name', 'AstrBot')))
+            report['platform_label'] = 'QQ 官方机器人' if is_official(event) else 'OneBot11 / NapCat'
             try:
                 from .status_html import render_html
                 image = await asyncio.wait_for(render_html(report, self.config), STATUS_RENDER_TIMEOUT)
@@ -130,7 +135,7 @@ class ExtraFeatures:
             self.extra_busy = False
 
     async def on_extra(self, event: AstrMessageEvent):
-        if event.get_platform_name() != 'aiocqhttp':
+        if event.get_platform_name() not in SUPPORTED_PLATFORMS:
             return
         text = event.message_str.strip().lstrip('#/')
         event.stop_event()

@@ -14,6 +14,7 @@ from .service import LikeService
 from .extras import ExtraFeatures
 from .image_menus import send_image_menu
 from .natural_commands import dispatch_command
+from .platform_support import LIKE_UNAVAILABLE, is_official
 from .pica.plugin import PicaHelper
 from .pixiv_reborn.plugin import PixivHelper
 from .jm.plugin import JmHelper
@@ -39,7 +40,7 @@ def number(config, key, default, low, high):
         return default
 
 
-@register('astrbot_plugin_qq_like','wzq10314','QQ点赞、状态图、哔咔漫画(pica)、PIXIV(pixiv_reborn)','1.6.2')
+@register('astrbot_plugin_qq_like','wzq10314','QQ点赞、状态图、哔咔漫画(pica)、PIXIV(pixiv_reborn)','1.6.3')
 class QQLike(ExtraFeatures, Star):
     def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
@@ -77,6 +78,8 @@ class QQLike(ExtraFeatures, Star):
         await self.jm.terminate()
 
     async def execute_like(self, event, target, count):
+        if is_official(event):
+            return LIKE_UNAVAILABLE
         if event.get_platform_name() != 'aiocqhttp':
             return '未执行：仅支持 OneBot11/NapCat。'
         if not self.config.get('enabled',True):
@@ -128,6 +131,10 @@ class QQLike(ExtraFeatures, Star):
 
     @filter.regex(r'^[#/]?(?:赞我|赞他|点赞帮助|点赞)(?:\s.*)?$')
     async def on_like(self, event: AstrMessageEvent):
+        if is_official(event):
+            event.stop_event()
+            yield event.plain_result(LIKE_UNAVAILABLE)
+            return
         if event.get_platform_name() != 'aiocqhttp':
             return
         command = ''.join(c.text for c in event.get_messages() if isinstance(c,Plain)).strip().lstrip('#/')
@@ -418,7 +425,43 @@ class QQLike(ExtraFeatures, Star):
             return
         async with aclosing(self.jm.search_command(event, keyword, page)) as results:
             async for result in results:
-                await asyncio.wait_for(event.send(result), timeout=90)
+                try:
+                    await asyncio.wait_for(event.send(result), timeout=90)
+                except Exception as exc:
+                    rejected, code = self._jm_search_content_rejection(event, exc)
+                    if not rejected:
+                        raise
+                    # Do not include the keyword, result, or raw SDK exception.
+                    # The SDK may expose only its message, so never infer a code.
+                    logger.warning('JM search delivery rejected: reason=qq_content_rejected error_type=%s%s',
+                                   type(exc).__name__, f' code={code}' if code else '')
+                    await self._jm_search_rejection_notice(event)
+                    return
+
+    def _jm_search_content_rejection(self, event, error):
+        if not is_official(event):
+            return False, None
+        try:
+            from botpy.errors import ServerError
+        except ImportError:
+            return False, None
+        if not isinstance(error, ServerError):
+            return False, None
+        code = getattr(error, 'code', None)
+        if code is None and error.args and isinstance(error.args[0], dict):
+            code = error.args[0].get('code')
+        known_code = type(code) in (str, int) and str(code) == '40034006'
+        message = getattr(error, 'msgs', None)
+        known_message = isinstance(message, str) and message.strip() == '消息内容违规'
+        return known_code or known_message, str(code) if known_code else None
+
+    async def _jm_search_rejection_notice(self, event):
+        text = '❌ QQ 官方平台拒绝了这条搜索消息（内容审核未通过），本次结果未能完整发送。'
+        try:
+            await asyncio.wait_for(event.send(self.jm._search_reply(event, text)), timeout=15)
+        except Exception as exc:
+            # A failed notification is not a reason to resend or change channel.
+            logger.warning('JM search rejection notice unconfirmed: error_type=%s', type(exc).__name__)
 
     async def _send_jm_private_ranking(self, event, result):
         """仅向本次真实发起用户私聊；成功后才确认该份投递。"""

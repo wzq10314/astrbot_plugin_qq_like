@@ -1,4 +1,5 @@
 from astrbot.api.event import AstrMessageEvent
+from ...platform_support import is_official, session_key
 
 from ..utils.tag import validate_and_process_tags
 
@@ -44,7 +45,7 @@ class RandomIllustHandler:
             yield event.plain_result(tag_result["error_message"])
             return
 
-        chat_id = event.get_group_id() or event.get_sender_id()
+        chat_id = session_key(event)
         # 构造用于发送消息的 session_id
         session_id = event.unified_msg_origin
 
@@ -60,14 +61,14 @@ class RandomIllustHandler:
             return
 
         idx = int(index) - 1  # 转换为 0-indexed
-        chat_id = event.get_group_id() or event.get_sender_id()
+        chat_id = session_key(event)
 
         success, message = remove_random_tag(chat_id, idx)
         yield event.plain_result(message)
 
     async def pixiv_random_list(self, event: AstrMessageEvent, args: str = ""):
         """列出当前群聊/用户的随机搜索标签"""
-        chat_id = event.get_group_id() or event.get_sender_id()
+        chat_id = session_key(event)
         tags = get_random_tags(chat_id)
 
         if not tags:
@@ -82,7 +83,7 @@ class RandomIllustHandler:
 
     async def pixiv_random_suspend(self, event: AstrMessageEvent):
         """暂停当前群聊的随机搜索功能"""
-        chat_id = event.get_group_id() or event.get_sender_id()
+        chat_id = session_key(event)
 
         # 检查是否有配置随机搜索
         has_config, is_suspended = get_random_search_status(chat_id)
@@ -102,7 +103,7 @@ class RandomIllustHandler:
 
     async def pixiv_random_resume(self, event: AstrMessageEvent):
         """恢复当前群聊的随机搜索功能"""
-        chat_id = event.get_group_id() or event.get_sender_id()
+        chat_id = session_key(event)
 
         # 检查是否有配置随机搜索
         has_config, is_suspended = get_random_search_status(chat_id)
@@ -122,6 +123,16 @@ class RandomIllustHandler:
 
     async def pixiv_random_status(self, event: AstrMessageEvent):
         """查看随机搜索队列状态"""
+        if is_official(event):
+            key = session_key(event)
+            has_config, suspended = get_random_search_status(key)
+            rankings = list_random_rankings(key)
+            status = "未配置" if not has_config else ("已暂停" if suspended else "已启用")
+            yield event.plain_result(
+                f"当前会话随机标签：{status}；随机榜单：{len(rankings)} 项"
+                + "。QQ 官方通知仍受当前会话的消息回复窗口与发送权限限制。"
+            )
+            return
         status = self.random_search_service.get_queue_status()
 
         msg = "随机搜索队列状态：\n"
@@ -138,7 +149,7 @@ class RandomIllustHandler:
 
     async def pixiv_random_force(self, event: AstrMessageEvent):
         """强制执行当前群聊的随机搜索（调试用）"""
-        chat_id = event.get_group_id() or event.get_sender_id()
+        chat_id = session_key(event)
 
         # 检查是否有配置随机搜索
         has_config, is_suspended = get_random_search_status(chat_id)
@@ -200,7 +211,7 @@ class RandomIllustHandler:
                 )
                 return
 
-        chat_id = event.get_group_id() or event.get_sender_id()
+        chat_id = session_key(event)
         session_id = event.unified_msg_origin
 
         success, message = add_random_ranking(chat_id, session_id, mode, date)
@@ -215,14 +226,14 @@ class RandomIllustHandler:
             return
 
         idx = int(index) - 1
-        chat_id = event.get_group_id() or event.get_sender_id()
+        chat_id = session_key(event)
 
         success, message = remove_random_ranking(chat_id, idx)
         yield event.plain_result(message)
 
     async def pixiv_random_ranking_list(self, event: AstrMessageEvent, args: str = ""):
         """列出当前群聊的随机排行榜配置"""
-        chat_id = event.get_group_id() or event.get_sender_id()
+        chat_id = session_key(event)
         configs = list_random_rankings(chat_id)
 
         if not configs:

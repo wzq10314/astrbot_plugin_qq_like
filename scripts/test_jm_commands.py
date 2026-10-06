@@ -36,6 +36,7 @@ def extract_class(path, name, methods, namespace):
 
 formatter = load_safe_module(ROOT / "jm" / "core" / "formatter.py")["JmFormatter"]
 chapters = load_safe_module(ROOT / "pica" / "chapters.py")
+platform = load_safe_module(ROOT / "platform_support.py")
 image_calls = []
 image_result = True
 
@@ -64,8 +65,8 @@ Helper = extract_class(ROOT / "jm" / "plugin.py", "JmHelper", {
     "download_command", "_download_task", "_reader_message",
 }, namespace)
 Main = extract_class(ROOT / "main.py", "QQLike", {
-    "jmhelp", "jm_cmd", "jmdl", "jmchapters", "jmsearch",
-}, {"asyncio": asyncio, "aclosing": aclosing})
+    "jmhelp", "jm_cmd", "jmdl", "jmchapters", "jmsearch", "_jm_search_content_rejection",
+}, {"asyncio": asyncio, "aclosing": aclosing, "is_official": platform["is_official"]})
 
 
 class Album:
@@ -391,6 +392,9 @@ class ImageMenuTests(unittest.IsolatedAsyncioTestCase):
             "MENU_FILES": {"jm": "jm.png", "pica": "pica.png"},
             "asyncio": asyncio, "base64": base64, "logger": Logger(),
             "menu_name": name, "render_menu": render,
+            # These regressions exercise the existing non-official menu flow.
+            "card_hint": platform["card_hint"],
+            "is_official": platform["is_official"],
             "Image": SimpleNamespace(fromFileSystem=lambda path: ("static", path), fromBase64=lambda value: ("rendered", value)),
         }
         path = ROOT / "image_menus.py"

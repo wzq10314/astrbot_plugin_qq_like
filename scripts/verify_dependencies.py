@@ -21,7 +21,7 @@ json.loads((root / '_conf_schema.json').read_text(encoding='utf-8-sig'))
 
 modules = set()
 for file in files:
-    if 'tests' in file.parts or 'scripts' in file.parts or file.name.startswith('test_'):
+    if 'tests' in file.parts or 'scripts' in file.parts:
         continue
     for node in ast.walk(ast.parse(file.read_text(encoding='utf-8-sig'))):
         if isinstance(node, ast.Import):

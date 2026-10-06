@@ -3,17 +3,19 @@
 Sets up fake astrbot.* modules and third-party dependencies so that test
 collection can import plugin code without a real AstrBot runtime.
 """
+import importlib.util
 import logging
 import sys
 import types
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from unittest.mock import MagicMock, AsyncMock
 
 # ---------------------------------------------------------------------------
 # Stub third-party deps not installed in the test environment
 # ---------------------------------------------------------------------------
 for _mod_name in (
-    'apscheduler', 'apscheduler.schedulers',
+    'peewee', 'apscheduler', 'apscheduler.schedulers',
     'apscheduler.schedulers.asyncio', 'apscheduler.triggers',
     'apscheduler.triggers.interval', 'apscheduler.triggers.cron',
     'curl_cffi', 'curl_cffi.requests',
@@ -50,8 +52,32 @@ if 'requests' not in sys.modules:
     sys.modules['requests'] = _requests
     sys.modules['requests.exceptions'] = _requests_exc
 
-# Database migration tests use a real temporary SQLite database.
-import peewee
+# peewee needs Model / SqliteDatabase / field types
+_pw = sys.modules['peewee']
+
+
+class _FakeModel:
+    class Meta:
+        database = None
+
+    @classmethod
+    def table_exists(cls):
+        return False
+
+    @classmethod
+    def create_tables(cls, models):
+        pass
+
+
+_pw.Model = _FakeModel
+_pw.SqliteDatabase = MagicMock()
+_pw.CharField = lambda **kw: None
+_pw.TextField = lambda **kw: None
+_pw.DateTimeField = lambda **kw: None
+_pw.IntegerField = lambda **kw: None
+_pw.BooleanField = lambda **kw: None
+_pw.ForeignKeyField = lambda *a, **kw: None
+_pw.CompositeKey = lambda *a: None
 
 # ---------------------------------------------------------------------------
 # Stub astrbot.* modules
@@ -97,8 +123,9 @@ class Star:
 
 
 star.Star = Star
+_test_data = TemporaryDirectory(prefix='qq-like-test-')
 star.StarTools = types.SimpleNamespace(
-    get_data_dir=lambda name: Path(__file__).resolve().parents[1] / '_test_data' / name,
+    get_data_dir=lambda name: Path(_test_data.name) / name,
     send_message=AsyncMock(),
 )
 star.register = lambda *args: lambda cls: cls
@@ -236,3 +263,16 @@ _core.platform = _core_platform
 # Expose commonly used stubs for test modules
 PLAIN = Plain
 AT = At
+
+# Load the real plugin package independently of the checkout directory name.
+# Vendored helpers import shared modules from their parent package, so loading
+# them as top-level ``pica`` / ``pixiv_reborn`` packages is not representative.
+_plugin_root = Path(__file__).resolve().parents[1]
+_plugin_spec = importlib.util.spec_from_file_location(
+    'astrbot_plugin_qq_like',
+    _plugin_root / '__init__.py',
+    submodule_search_locations=[str(_plugin_root)],
+)
+_plugin_package = importlib.util.module_from_spec(_plugin_spec)
+sys.modules[_plugin_spec.name] = _plugin_package
+_plugin_spec.loader.exec_module(_plugin_package)

@@ -16,3 +16,5 @@
 本仓库只包含代码、示例配置与必要字体，不包含用户账号、令牌、订阅信息、数据库或下载的作品。
 
 图片菜单自定义标题使用 [霞鹜文楷](https://github.com/lxgw/LxgwWenKai)，采用 SIL Open Font License 1.1，字体与许可保留在 `assets/fonts/`。
+
+JM 功能参考 [X-Zero-L/jmhelper](https://github.com/X-Zero-L/jmhelper) 的操作流程，并使用通过依赖安装的 [jmcomic](https://github.com/hect0x7/JMComic-Crawler-Python)；AstrBot 命令、异步调度、选章、缓存和阅读链接由本整合适配层实现。上游 jmhelper 未随仓库提供明确的许可证声明，本项目不将其标为 MIT、GPL 或其他许可，也不代表上游作者授予新的许可。

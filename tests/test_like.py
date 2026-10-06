@@ -1,6 +1,7 @@
 import asyncio
 import importlib.util
 from pathlib import Path
+from tempfile import TemporaryDirectory
 import sys
 import types
 import unittest
@@ -79,7 +80,7 @@ from unittest.mock import MagicMock
 import logging
 
 # Stub third-party deps not installed in test environment
-for _mod_name in ('apscheduler', 'apscheduler.schedulers',
+for _mod_name in ('peewee', 'apscheduler', 'apscheduler.schedulers',
                   'apscheduler.schedulers.asyncio', 'apscheduler.triggers',
                   'apscheduler.triggers.interval', 'apscheduler.triggers.cron',
                   'curl_cffi', 'curl_cffi.requests',
@@ -88,8 +89,24 @@ for _mod_name in ('apscheduler', 'apscheduler.schedulers',
     if _mod_name not in sys.modules:
         sys.modules[_mod_name] = MagicMock()
 
-# Keep the real ORM for database migration regression tests.
-import peewee
+# peewee needs special treatment: `import peewee as pw` then `pw.Model`, `pw.SqliteDatabase` etc.
+_pw = sys.modules['peewee']
+class _FakeModel:
+    class Meta:
+        database = None
+    @classmethod
+    def table_exists(cls): return False
+    @classmethod
+    def create_tables(cls, models): pass
+_pw.Model = _FakeModel
+_pw.SqliteDatabase = MagicMock()
+_pw.CharField = lambda **kw: None
+_pw.TextField = lambda **kw: None
+_pw.DateTimeField = lambda **kw: None
+_pw.IntegerField = lambda **kw: None
+_pw.BooleanField = lambda **kw: None
+_pw.ForeignKeyField = lambda *a, **kw: None
+_pw.CompositeKey = lambda *a: None
 
 # pixivpy3 needs a real PixivError for isinstance/raise checks
 if 'pixivpy3' not in sys.modules:
@@ -136,8 +153,9 @@ star.Context = object
 class Star:
     def __init__(self, context): pass
 star.Star = Star
+_test_data = TemporaryDirectory(prefix='qq-like-test-')
 star.StarTools = types.SimpleNamespace(
-    get_data_dir=lambda name: Path(__file__).resolve().parents[1] / '_test_data' / name,
+    get_data_dir=lambda name: Path(_test_data.name) / name,
     send_message=AsyncMock(),
 )
 star.register = lambda *args: lambda cls: cls

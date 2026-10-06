@@ -10,6 +10,7 @@ import contextvars
 import hashlib
 import hmac
 import json
+import re
 import time
 
 import aiohttp
@@ -283,7 +284,11 @@ class PicaClient:
     async def episodes(self, comic_id: str, page: int = 1, token: str = None) -> dict:
         """章节列表"""
         result = await self._request("GET", f"/comics/{comic_id}/eps?page={page}", token=token)
-        return result.get("data", {}).get("eps", {})
+        data = result.get("data") if isinstance(result, dict) else None
+        episodes = data.get("eps") if isinstance(data, dict) else None
+        if not isinstance(episodes, dict) or not isinstance(episodes.get("docs"), list):
+            raise PicaError("章节目录响应不完整，暂时无法确认可用章节，请稍后重试。")
+        return episodes
 
     async def episodes_all(self, comic_id: str, token: str = None) -> list[dict]:
         """拉取全部章节（自动翻页）"""
@@ -302,9 +307,22 @@ class PicaClient:
 
     async def pages(self, comic_id: str, ep_order: int, page: int = 1, token: str = None) -> dict:
         """章节图片页"""
-        result = await self._request(
-            "GET", f"/comics/{comic_id}/order/{ep_order}/pages?page={page}", token=token
-        )
+        try:
+            result = await self._request(
+                "GET", f"/comics/{comic_id}/order/{ep_order}/pages?page={page}", token=token
+            )
+        except PicaAuthError:
+            raise
+        except PicaError as exc:
+            # A chapter can disappear after directory validation. This server
+            # null-record error is not evidence of a connection/auth failure.
+            if re.search(r"cannot read (?:property ['\"]_id['\"] of null|"
+                         r"properties of null \(reading ['\"]_id['\"]\))", str(exc), re.I):
+                raise PicaError(
+                    f"第{ep_order}话的章节记录暂不可用，可能已删除或目录已变动。"
+                    f"请用 /pica章节 {comic_id} 查看最新目录后再选择章节。", exc.code
+                ) from exc
+            raise
         return result.get("data", {}).get("pages", {})
 
     async def recommendations(self, comic_id: str, token: str = None) -> list:

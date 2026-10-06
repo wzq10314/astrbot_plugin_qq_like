@@ -114,6 +114,8 @@ async def dispatch_command(plugin, event, family, command, parameters=None, user
     # A shallow copy retains the real event class, bot, message ID and sender.
     # Only command text and local stop flags change; no forged user/group is accepted.
     request_event = copy.copy(event)
+    from .platform_support import card_hint
+    card_hint(request_event, family)
     request_event.message_str = '/' + name + (' ' + ' '.join(str(params.get(k, '')) for k in spec['parameters']) if params else '')
     delivered = 0
     failed = False

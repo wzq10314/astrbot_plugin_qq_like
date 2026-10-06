@@ -10,6 +10,8 @@ from pathlib import Path
 
 from astrbot.api import logger
 from astrbot.api.message_components import Image
+from .platform_support import card_hint, is_official, official_bot_name
+from .menu_preview import encode_menu_preview
 
 ASSETS = Path(__file__).resolve().parent / 'assets' / 'menus'
 FONT = ASSETS.parent / 'fonts' / 'LXGWWenKai-Regular.ttf'
@@ -28,6 +30,8 @@ async def menu_name(event, config):
     if custom:
         return custom
     fallback = clean_name(config.get('status_bot_name', '')) or '机器人'
+    if is_official(event):
+        return clean_name(official_bot_name(event, fallback))
     try:
         identity = str(event.get_self_id())
         key = (str(event.get_platform_name()), identity)
@@ -111,6 +115,11 @@ async def render_menu(kind, name, config):
 
 
 async def send_image_menu(event, kind, config=None):
+    card_hint(event, kind, '')
+    if is_official(event):
+        hint = dict(event.get_extra('qq_official_card', {}) or {})
+        hint['menu'] = True
+        event.set_extra('qq_official_card', hint)
     config = config or {}
     path = ASSETS / MENU_FILES[kind]
     if not path.is_file():
@@ -129,6 +138,10 @@ async def send_image_menu(event, kind, config=None):
                     raise
                 logger.warning('JM 菜单品牌渲染不可用，发送内置图片帮助。')
                 component = Image.fromFileSystem(str(path))
+        if is_official(event):
+            source = Path(await component.convert_to_file_path())
+            preview = await asyncio.to_thread(lambda: encode_menu_preview(source.read_bytes()))
+            component = Image.fromBase64(base64.b64encode(preview).decode('ascii'))
         await asyncio.wait_for(event.send(event.chain_result([component])), timeout=60)
         return True
     except Exception as exc:

@@ -1,5 +1,6 @@
 import ast
 import asyncio
+import importlib.machinery
 import importlib.util
 import logging
 from pathlib import Path
@@ -14,7 +15,15 @@ def load_db():
     api=types.ModuleType('astrbot.api');api.logger=logging.getLogger('regression')
     spec=importlib.util.spec_from_file_location('db_regression',ROOT/'pixiv_reborn/utils/database.py')
     module=importlib.util.module_from_spec(spec)
-    with patch.dict(sys.modules,{'astrbot.api':api}):spec.loader.exec_module(module)
+    # Command integration tests stub peewee globally. This regression must
+    # exercise the installed library and SQLite, including binding/migrations.
+    peewee_spec=importlib.machinery.PathFinder.find_spec('peewee')
+    if peewee_spec is None:
+        raise ModuleNotFoundError('Install requirements-dev.txt to run database regressions')
+    peewee=importlib.util.module_from_spec(peewee_spec)
+    with patch.dict(sys.modules,{'astrbot.api':api,'peewee':peewee}):
+        peewee_spec.loader.exec_module(peewee)
+        spec.loader.exec_module(module)
     return module
 
 class DatabaseTests(unittest.TestCase):
